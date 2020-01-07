@@ -1,0 +1,22 @@
+
+{
+  "file_format_version" : "1.0.0",
+  "layer" : {
+    "name": "VK_LAYER_STADIA_pipeline_runtime",
+    "type": "GLOBAL",
+    "library_path": "libVkLayer_stadia_pipeline_runtime.so",
+    "api_version": "1.1.74",
+    "implementation_version": "1",
+    "description": "Measures the time it takes to run pipelines.",
+    "functions": {
+      "vkGetInstanceProcAddr": "RuntimeLayer_GetInstanceProcAddr",
+      "vkGetDeviceProcAddr": "RuntimeLayer_GetDeviceProcAddr"
+    },
+    "enable_environment": {
+      "ENABLE_PIPELINE_RUNTIME_PERFORMANCE_LAYER": "1"
+    },
+    "disable_environment": {
+      "DISABLE_PIPELINE_RUNTIME_PERFORMANCE_LAYER": "1"
+    }
+  }
+}

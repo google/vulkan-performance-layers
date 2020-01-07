@@ -1,0 +1,6 @@
+[submodule "external/abseil-cpp"]
+	path = third_party/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "external/farmhash"]
+	path = third_party/farmhash
+	url = https://github.com/google/farmhash
