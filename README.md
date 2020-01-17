@@ -33,3 +33,7 @@ cmake .. \
 
 See docker/build.Dockerfile for detailed Ubuntu build instructions.
 
+## Disclaimer
+
+This is not an officially supported Google product. Support and/or new releases may be limited.
+
