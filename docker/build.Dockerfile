@@ -18,12 +18,14 @@
 # Sample invocation:
 #    docker build . --file docker/build.Dockerfile               \
 #                   --build-arg CONFIG=Release                   \
-#                   --build-arg COMPILER=clang
+#                   --build-arg COMPILER=clang                   \
+#                   --build-arg GENERATOR=Ninja
 
 FROM ubuntu:18.04
 
 ARG CONFIG
 ARG COMPILER
+ARG GENERATOR
 
 # Install required packages.
 RUN apt-get update \
@@ -46,21 +48,23 @@ RUN git clone https://github.com/KhronosGroup/Vulkan-Headers.git \
     && git clone https://github.com/KhronosGroup/Vulkan-Loader.git \
     && mkdir vulkan-headers-build \
     && cd /dependencies/vulkan-headers-build \
-    && cmake ../Vulkan-Headers -GNinja \
+    && cmake ../Vulkan-Headers \
+         -G "$GENERATOR" \
          -DCMAKE_BUILD_TYPE="$CONFIG" \
          -DCMAKE_INSTALL_PREFIX=run \
-    && ninja install
+    && cmake --build . \
+    && cmake --build . --target install
 
 # Build performance layers.
 WORKDIR /performance-layers/build
 RUN cmake .. \
-      -GNinja \
+      -G "$GENERATOR" \
       -DCMAKE_C_COMPILER="$COMPILER" \
       -DCMAKE_CXX_COMPILER="$COMPILER" \
       -DCMAKE_BUILD_TYPE="$CONFIG" \
       -DCMAKE_INSTALL_PREFIX=run \
       -DVULKAN_HEADERS_INSTALL_DIR=/dependencies/vulkan-headers-build/run \
       -DVULKAN_LOADER_GENERATED_DIR=/dependencies/Vulkan-Loader/loader/generated \
-    && ninja \
-    && ninja install
+    && cmake --build . \
+    && cmake --build . --target install
 
