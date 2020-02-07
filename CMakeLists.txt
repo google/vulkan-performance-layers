@@ -63,6 +63,7 @@ target_include_directories(VkLayer_stadia_pipeline_compile_time PRIVATE
 target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE
     absl::flat_hash_map
     absl::strings
+    absl::str_format
     absl::synchronization
     farmhash
 )
@@ -83,6 +84,7 @@ target_include_directories(VkLayer_stadia_pipeline_runtime PRIVATE
 target_link_libraries(VkLayer_stadia_pipeline_runtime PRIVATE
     absl::flat_hash_map
     absl::strings
+    absl::str_format
     absl::synchronization
     farmhash
 )
