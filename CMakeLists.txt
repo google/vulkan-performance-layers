@@ -74,6 +74,7 @@ target_compile_definitions(VkLayer_stadia_pipeline_compile_time PRIVATE
 add_library(VkLayer_stadia_pipeline_runtime SHARED
     layer/layer_data.cc
     layer/runtime_layer.cc
+    layer/runtime_layer_data.cc
 )
 target_include_directories(VkLayer_stadia_pipeline_runtime PRIVATE
     layer
