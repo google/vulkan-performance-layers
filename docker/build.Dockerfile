@@ -29,13 +29,14 @@ ARG GENERATOR
 
 # Install required packages.
 RUN apt-get update \
-    && apt-get install -yqq \
-    	build-essential cmake gcc g++ clang-8 ninja-build binutils-gold \
-    	python python-distutils-extra python3 python3-distutils \
-    	git vim-tiny \
+    && apt-get install -yqq --no-install-recommends \
+      build-essential cmake gcc g++ clang-8 ninja-build binutils-gold \
+      python python-distutils-extra python3 python3-distutils \
+      git vim-tiny \
       libglm-dev libxcb-dri3-0 libxcb-present0 libpciaccess0 \
-			libpng-dev libxcb-keysyms1-dev libxcb-dri3-dev libx11-dev \
+	    libpng-dev libxcb-keysyms1-dev libxcb-dri3-dev libx11-dev \
       libmirclient-dev libwayland-dev libxrandr-dev libxcb-ewmh-dev \
+    && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10 \
     && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 10 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 10
