@@ -20,7 +20,6 @@
 #include <functional>
 #include <string>
 
-
 #undef VK_LAYER_EXPORT
 #ifndef _WIN32
 #define VK_LAYER_EXPORT extern "C" __attribute__((visibility("default")))
@@ -34,8 +33,9 @@ namespace {
 // ----------------------------------------------------------------------------
 
 constexpr uint32_t kRuntimeLayerVersion = 1;
-constexpr char kLayerName[] = "VK_LAYER_GOOGLE_pipeline_runtime";
-constexpr char kLayerDescription[] = "Google Pipeline pipeline runtime Layer";
+constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_runtime";
+constexpr char kLayerDescription[] =
+    "Stadia Pipeline Pipeline Runtime Measuring Layer";
 
 performancelayers::RuntimeLayerData* GetLayerData() {
   static performancelayers::RuntimeLayerData* layer_data =

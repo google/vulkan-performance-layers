@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -35,8 +34,9 @@ namespace {
 // ----------------------------------------------------------------------------
 
 constexpr uint32_t kCompileTimeLayerVersion = 1;
-constexpr char kLayerName[] = "VK_LAYER_GOOGLE_pipeline_compile_time";
-constexpr char kLayerDescription[] = "Google Pipeline compile time Layer";
+constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_compile_time";
+constexpr char kLayerDescription[] =
+    "Stadia Pipeline Compile Time Measuring Layer";
 
 performancelayers::LayerData* GetLayerData() {
   static performancelayers::LayerData* layer_data =
