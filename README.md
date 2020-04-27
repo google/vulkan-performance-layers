@@ -3,6 +3,7 @@
 This project contains two Vulkan layers:
 1. Compile-time layer for measuring pipeline compilation times.
 2. Runtime layer for measuring pipeline execution times.
+3. Frame time layer for measuring time between calls to vkQueuePresentKHR, in nanoseconds.
 
 The results are saved as CSV files.
 

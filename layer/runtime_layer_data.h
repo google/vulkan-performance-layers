@@ -15,10 +15,9 @@
 #ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_RUNTIME_LAYER_DATA_H_
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_RUNTIME_LAYER_DATA_H_
 
-#include "layer_data.h"
-
 #include <vector>
 
+#include "layer_data.h"
 
 namespace performancelayers {
 
@@ -37,7 +36,8 @@ class RuntimeLayerData : public LayerData {
   };
 
  public:
-  explicit RuntimeLayerData(char* log_filename) : LayerData(log_filename) {}
+  explicit RuntimeLayerData(char* log_filename)
+      : LayerData(log_filename, "Pipeline,Run Time (ns)") {}
 
   // Records the device that owns |cmd_buffer|.
   void SetDevice(void* cmd_buffer, VkDevice device) {

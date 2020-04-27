@@ -93,7 +93,31 @@ target_compile_definitions(VkLayer_stadia_pipeline_runtime PRIVATE
 	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
 )
 
-install(TARGETS VkLayer_stadia_pipeline_compile_time VkLayer_stadia_pipeline_runtime
+add_library(VkLayer_stadia_frame_time SHARED
+    layer/layer_data.cc
+    layer/frame_time_layer.cc
+)
+target_include_directories(VkLayer_stadia_frame_time PRIVATE
+    layer
+    ${VulkanHeaders_INCLUDE_DIR}
+    ${VulkanLoaderGenerated_INCLUDE_DIR}
+    third_party/farmhash/src
+)
+target_link_libraries(VkLayer_stadia_frame_time PRIVATE
+    absl::flat_hash_map
+    absl::strings
+    absl::str_format
+    absl::synchronization
+    farmhash
+)
+target_compile_definitions(VkLayer_stadia_frame_time PRIVATE
+	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
+)
+
+install(TARGETS
+        VkLayer_stadia_pipeline_compile_time
+        VkLayer_stadia_pipeline_runtime
+        VkLayer_stadia_frame_time
         DESTINATION lib)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
