@@ -23,12 +23,12 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/synchronization/mutex.h"
-
 #include "farmhash.h"
-
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_core.h"
+
+// clang-format: do not reorder the include below.
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
@@ -45,7 +45,7 @@ class LayerData {
       absl::flat_hash_map<VkInstance, VkLayerInstanceDispatchTable>;
   using DeviceDispatchMap = absl::flat_hash_map<VkDevice, VkLayerDispatchTable>;
 
-  explicit LayerData(char* log_filename);
+  LayerData(char* log_filename, const char* header);
 
   virtual ~LayerData() {
     if (out_ != stderr) {
@@ -162,6 +162,9 @@ class LayerData {
   // of each shader that is part of the pipeline.
   void Log(const std::vector<uint64_t>& pipeline, uint64_t time) const;
 
+  // Logs the time since the last call to LogTimeDelta.
+  void LogTimeDelta();
+
   // Returns a string identifier of |pipeline|.
   std::string PipelineHashToString(const std::vector<uint64_t>& pipeline) const;
 
@@ -210,6 +213,8 @@ class LayerData {
   mutable absl::Mutex log_lock_;
   // A pointer to the log file to use.
   FILE* out_ ABSL_GUARDED_BY(log_lock_);
+  // The last time LogTimeDelta was called.
+  absl::Time last_log_time_ ABSL_GUARDED_BY(log_lock_) = absl::InfinitePast();
 };
 
 }  // namespace performancelayers

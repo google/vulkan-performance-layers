@@ -14,6 +14,7 @@
 
 #include "layer_data.h"
 
+#include <inttypes.h>
 #include <cstdint>
 
 #include "absl/strings/str_cat.h"
@@ -64,7 +65,7 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }  // namespace
 
 namespace performancelayers {
-LayerData::LayerData(char* log_filename) {
+LayerData::LayerData(char* log_filename, const char* header) {
   out_ = nullptr;
   if (log_filename) {
     out_ = fopen(log_filename, "w");
@@ -76,14 +77,25 @@ LayerData::LayerData(char* log_filename) {
   } else {
     out_ = stderr;
   }
-  fprintf(out_, "Pipeline,Compile Time (ns)\n");
+  fprintf(out_, "%s\n", header);
 }
 
 void LayerData::Log(const std::vector<uint64_t>& pipeline,
                     uint64_t time) const {
   absl::MutexLock lock(&log_lock_);
   // Quote the comma-separated hash value array to always create 2 CSV cells.
-  fprintf(out_, "\"%s\",%lu\n", PipelineHashToString(pipeline).c_str(), time);
+  fprintf(out_, "\"%s\",%" PRIu64 "\n", PipelineHashToString(pipeline).c_str(),
+          time);
+}
+
+void LayerData::LogTimeDelta() {
+  absl::MutexLock lock(&log_lock_);
+  auto now = absl::Now();
+  if (last_log_time_ != absl::InfinitePast()) {
+    const int64_t delta = ToInt64Nanoseconds(now - last_log_time_);
+    fprintf(out_, "%" PRId64 "\n", delta);
+  }
+  last_log_time_ = now;
 }
 
 std::string LayerData::PipelineHashToString(

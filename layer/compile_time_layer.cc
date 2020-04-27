@@ -40,7 +40,8 @@ constexpr char kLayerDescription[] =
 
 performancelayers::LayerData* GetLayerData() {
   static performancelayers::LayerData* layer_data =
-      new performancelayers::LayerData(getenv("VK_COMPILE_TIME_LOG"));
+      new performancelayers::LayerData(getenv("VK_COMPILE_TIME_LOG"),
+                                       "Pipeline,Compile Time (ns)");
   return layer_data;
 }
 
