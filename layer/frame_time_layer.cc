@@ -114,7 +114,7 @@ VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
         std::tm tm = *std::localtime(&curr_time);
         std::ostringstream oss;
         oss << std::put_time(&tm, "%c %Z");
-        fprintf(finish_file, "Stadia Frame Time Layer\nTemninated on %s\n",
+        fprintf(finish_file, "Stadia Frame Time Layer\nTerminated on %s\n",
                 oss.str().c_str());
         fclose(finish_file);
       }
