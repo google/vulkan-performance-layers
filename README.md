@@ -1,9 +1,9 @@
 # Vulkan Performance Layers
 
-This project contains two Vulkan layers:
-1. Compile-time layer for measuring pipeline compilation times.
-2. Runtime layer for measuring pipeline execution times.
-3. Frame time layer for measuring time between calls to vkQueuePresentKHR, in nanoseconds.
+This project contains three Vulkan layers:
+1. Compile time layer for measuring pipeline compilation times. The output log file location can be set with the `VK_COMPILE_TIME_LOG` environment variable.
+2. *(Work in Progress)* Runtime layer for measuring pipeline execution times. The output log file location can be set with the `VK_RUNTIME_LOG` environment variable.
+3. Frame time layer for measuring time between calls to vkQueuePresentKHR, in nanoseconds. This layer can also terminate the parent Vulkan application after a given number of frames, controlled by the `VK_FRAME_TIME_EXIT_AFTER_FRAME` environment variable. The output log file location can be set with the `VK_FRAME_TIME_LOG` environment variable.
 
 The results are saved as CSV files.
 

@@ -36,10 +36,11 @@ constexpr uint32_t kRuntimeLayerVersion = 1;
 constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_runtime";
 constexpr char kLayerDescription[] =
     "Stadia Pipeline Pipeline Runtime Measuring Layer";
+constexpr char kLogFilenameEnvVar[] = "VK_RUNTIME_LOG";
 
 performancelayers::RuntimeLayerData* GetLayerData() {
   static performancelayers::RuntimeLayerData* layer_data =
-      new performancelayers::RuntimeLayerData(getenv("VK_RUNTIME_LOG"));
+      new performancelayers::RuntimeLayerData(getenv(kLogFilenameEnvVar));
   return layer_data;
 }
 

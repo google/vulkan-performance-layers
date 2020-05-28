@@ -37,10 +37,11 @@ constexpr uint32_t kCompileTimeLayerVersion = 1;
 constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_compile_time";
 constexpr char kLayerDescription[] =
     "Stadia Pipeline Compile Time Measuring Layer";
+constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
 
 performancelayers::LayerData* GetLayerData() {
   static performancelayers::LayerData* layer_data =
-      new performancelayers::LayerData(getenv("VK_COMPILE_TIME_LOG"),
+      new performancelayers::LayerData(getenv(kLogFilenameEnvVar),
                                        "Pipeline,Compile Time (ns)");
   return layer_data;
 }
