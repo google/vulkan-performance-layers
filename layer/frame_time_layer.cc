@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <inttypes.h>
+
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
 #include "layer_data.h"
 
 #undef VK_LAYER_EXPORT
@@ -30,10 +36,15 @@ constexpr uint32_t kFrameTimeLayerVersion = 1;
 constexpr char kLayerName[] = "VK_LAYER_STADIA_frame_time";
 constexpr char kLayerDescription[] = "Stadia Frame Time Measuring Layer";
 
+constexpr char kLogFilenameEnvVar[] = "VK_FRAME_TIME_LOG";
+constexpr char kExitAfterFrameEnvVar[] = "VK_FRAME_TIME_EXIT_AFTER_FRAME";
+constexpr char kFinishFileEnvVar[] = "VK_FRAME_TIME_FINISH_FILE";
+
 class FrameTimeLayerData : public performancelayers::LayerData {
  public:
-  explicit FrameTimeLayerData(char* log_filename)
-      : LayerData(log_filename, "Frame Time (ns)") {}
+  FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid)
+      : LayerData(log_filename, "Frame Time (ns)"),
+        exit_frame_num_or_invalid_(exit_frame_num_or_invalid) {}
 
   // Records the device that owns |queue|.
   void SetDevice(VkQueue queue, VkDevice device) {
@@ -48,7 +59,16 @@ class FrameTimeLayerData : public performancelayers::LayerData {
     return queue_to_device_.at(queue);
   }
 
+  static constexpr uint64_t kInvalidFrameNum = ~uint64_t(0);
+
+  // Returns the next frame number.
+  uint64_t IncrementFrameNum() { return ++current_frame_num_; }
+  uint64_t GetExitFrameNum() const { return exit_frame_num_or_invalid_; }
+
  private:
+  const uint64_t exit_frame_num_or_invalid_;
+  uint64_t current_frame_num_ = 0;
+
   mutable absl::Mutex queue_to_device_lock_;
   // The map from a queue to the device that owns it.
   absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
@@ -56,8 +76,18 @@ class FrameTimeLayerData : public performancelayers::LayerData {
 };
 
 FrameTimeLayerData* GetLayerData() {
-  static FrameTimeLayerData* layer_data =
-      new FrameTimeLayerData(getenv("VK_FRAME_TIME_LOG"));
+  auto GetExitAfterFrameVal = [] {
+    if (const char* exit_after_frame_val_str = getenv(kExitAfterFrameEnvVar)) {
+      std::stringstream ss;
+      ss << exit_after_frame_val_str;
+      uint64_t exit_frame_val = FrameTimeLayerData::kInvalidFrameNum;
+      ss >> exit_frame_val;
+      return exit_frame_val;
+    }
+    return FrameTimeLayerData::kInvalidFrameNum;
+  };
+  static FrameTimeLayerData* layer_data = new FrameTimeLayerData(
+      getenv(kLogFilenameEnvVar), GetExitAfterFrameVal());
   return layer_data;
 }
 
@@ -69,6 +99,40 @@ VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
     VkQueue queue, const VkPresentInfoKHR* present_info) {
   auto* layer_data = GetLayerData();
   layer_data->LogTimeDelta();
+
+  uint64_t frames_elapsed = layer_data->IncrementFrameNum();
+  uint64_t exit_frame_num = layer_data->GetExitFrameNum();
+  // If the layer should make Vulkan application exit after this frame.
+  if (exit_frame_num != FrameTimeLayerData::kInvalidFrameNum &&
+      frames_elapsed >= exit_frame_num) {
+    if (const char* finish_indicator_file = getenv(kFinishFileEnvVar)) {
+      // Create the application finish indicator file and write the current time
+      // there. This is to aid debugging when the modification time can be lost
+      // when sending the file over a wire.
+      if (FILE* finish_file = fopen(finish_indicator_file, "w")) {
+        std::time_t curr_time = std::time(nullptr);
+        std::tm tm = *std::localtime(&curr_time);
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%c %Z");
+        fprintf(finish_file, "Stadia Frame Time Layer\nTemninated on %s\n",
+                oss.str().c_str());
+        fclose(finish_file);
+      }
+    }
+
+    fprintf(
+        stderr,
+        "Stadia Frame Time Layer: Terminating application after frame %" PRIu64
+        "\n",
+        frames_elapsed);
+    fflush(stderr);
+    // _Exit will bring down the parent Vulkan application without running any
+    // cleanup. Resources will be reclaimed by the operating system.
+    // Delete to force the destructor to save the layer log files.
+    delete layer_data;
+    std::_Exit(99);
+  }
+
   auto device = layer_data->GetDevice(queue);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::QueuePresentKHR);
