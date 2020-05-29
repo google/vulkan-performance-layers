@@ -39,9 +39,10 @@ constexpr char kLayerDescription[] =
 constexpr char kLogFilenameEnvVar[] = "VK_RUNTIME_LOG";
 
 performancelayers::RuntimeLayerData* GetLayerData() {
-  static performancelayers::RuntimeLayerData* layer_data =
-      new performancelayers::RuntimeLayerData(getenv(kLogFilenameEnvVar));
-  return layer_data;
+  // Don't use new -- make the destructor run when the layer gets unloaded.
+  static performancelayers::RuntimeLayerData layer_data =
+      performancelayers::RuntimeLayerData(getenv(kLogFilenameEnvVar));
+  return &layer_data;
 }
 
 //////////////////////////////////////////////////////////////////////////////

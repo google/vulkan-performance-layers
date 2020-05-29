@@ -46,6 +46,8 @@ class FrameTimeLayerData : public performancelayers::LayerData {
       : LayerData(log_filename, "Frame Time (ns)"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid) {}
 
+  ~FrameTimeLayerData() override;
+
   // Records the device that owns |queue|.
   void SetDevice(VkQueue queue, VkDevice device) {
     absl::MutexLock lock(&queue_to_device_lock_);
@@ -86,9 +88,37 @@ FrameTimeLayerData* GetLayerData() {
     }
     return FrameTimeLayerData::kInvalidFrameNum;
   };
-  static FrameTimeLayerData* layer_data = new FrameTimeLayerData(
-      getenv(kLogFilenameEnvVar), GetExitAfterFrameVal());
-  return layer_data;
+
+  // Don't use new -- make the destructor run when the layer gets unloaded.
+  static FrameTimeLayerData layer_data(getenv(kLogFilenameEnvVar),
+                                       GetExitAfterFrameVal());
+  return &layer_data;
+}
+
+// If |kFinishFileEnvVar| is set, this function will create a finish file with
+// under |finishCause| and time written under that location.
+void CreateFinishIndicatorFile(const char* finishCause) {
+  assert(finishCause);
+  const char* finish_indicator_file = getenv(kFinishFileEnvVar);
+  if (!finish_indicator_file) return;
+
+  FILE* finish_file = fopen(finish_indicator_file, "w");
+  if (!finish_file) return;
+
+  // Create the application finish indicator file and write the current time
+  // there. This is to aid debugging when the modification time can be lost
+  // when sending the file over a wire.
+  std::time_t curr_time = std::time(nullptr);
+  std::tm tm = *std::localtime(&curr_time);
+  std::ostringstream oss;
+  oss << std::put_time(&tm, "%c %Z");
+  fprintf(finish_file, "Stadia Frame Time Layer\n%s %s\n", finishCause,
+          oss.str().c_str());
+  fclose(finish_file);
+}
+
+FrameTimeLayerData::~FrameTimeLayerData() {
+  CreateFinishIndicatorFile("APPLICATION_EXIT");
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -103,33 +133,17 @@ VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
   uint64_t frames_elapsed = layer_data->IncrementFrameNum();
   uint64_t exit_frame_num = layer_data->GetExitFrameNum();
   // If the layer should make Vulkan application exit after this frame.
-  if (exit_frame_num != FrameTimeLayerData::kInvalidFrameNum &&
-      frames_elapsed >= exit_frame_num) {
-    if (const char* finish_indicator_file = getenv(kFinishFileEnvVar)) {
-      // Create the application finish indicator file and write the current time
-      // there. This is to aid debugging when the modification time can be lost
-      // when sending the file over a wire.
-      if (FILE* finish_file = fopen(finish_indicator_file, "w")) {
-        std::time_t curr_time = std::time(nullptr);
-        std::tm tm = *std::localtime(&curr_time);
-        std::ostringstream oss;
-        oss << std::put_time(&tm, "%c %Z");
-        fprintf(finish_file, "Stadia Frame Time Layer\nTerminated on %s\n",
-                oss.str().c_str());
-        fclose(finish_file);
-      }
-    }
-
+  if (frames_elapsed == exit_frame_num) {
     fprintf(
         stderr,
         "Stadia Frame Time Layer: Terminating application after frame %" PRIu64
         "\n",
         frames_elapsed);
     fflush(stderr);
+
     // _Exit will bring down the parent Vulkan application without running any
     // cleanup. Resources will be reclaimed by the operating system.
-    // Delete to force the destructor to save the layer log files.
-    delete layer_data;
+    CreateFinishIndicatorFile("FRAME_TIME_LAYER_TERMINATED");
     std::_Exit(99);
   }
 
