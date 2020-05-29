@@ -78,6 +78,7 @@ LayerData::LayerData(char* log_filename, const char* header) {
     out_ = stderr;
   }
   fprintf(out_, "%s\n", header);
+  fflush(out_);
 }
 
 void LayerData::Log(const std::vector<uint64_t>& pipeline,
@@ -86,6 +87,7 @@ void LayerData::Log(const std::vector<uint64_t>& pipeline,
   // Quote the comma-separated hash value array to always create 2 CSV cells.
   fprintf(out_, "\"%s\",%" PRIu64 "\n", PipelineHashToString(pipeline).c_str(),
           time);
+  fflush(out_);
 }
 
 void LayerData::LogTimeDelta() {
@@ -94,6 +96,7 @@ void LayerData::LogTimeDelta() {
   if (last_log_time_ != absl::InfinitePast()) {
     const int64_t delta = ToInt64Nanoseconds(now - last_log_time_);
     fprintf(out_, "%" PRId64 "\n", delta);
+    fflush(out_);
   }
   last_log_time_ = now;
 }

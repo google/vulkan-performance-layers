@@ -40,10 +40,10 @@ constexpr char kLayerDescription[] =
 constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
 
 performancelayers::LayerData* GetLayerData() {
-  static performancelayers::LayerData* layer_data =
-      new performancelayers::LayerData(getenv(kLogFilenameEnvVar),
-                                       "Pipeline,Compile Time (ns)");
-  return layer_data;
+  // Don't use new -- make the destructor run when the layer gets unloaded.
+  static performancelayers::LayerData layer_data = performancelayers::LayerData(
+      getenv(kLogFilenameEnvVar), "Pipeline,Compile Time (ns)");
+  return &layer_data;
 }
 
 //////////////////////////////////////////////////////////////////////////////
