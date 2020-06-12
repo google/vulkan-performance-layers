@@ -201,15 +201,30 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
   VkDevice device = layer_data->GetDevice(command_buffer);
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CmdWriteTimestamp);
+  auto pipeline_barrier_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdPipelineBarrier);
   auto next_proc = layer_data->GetNextDeviceProcAddr(device, func_ptr);
 
-  // Get the timestamp before the dispatch starts.
-  (write_timestamp_function)(command_buffer,
-                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                             timestamp_query_pool, 0);
+  // Ensure any previous commands have completed.
+  VkMemoryBarrier full_memory_barrier = {
+      VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+      VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
+      VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
+  (pipeline_barrier_function)(
+      command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /*dependencyFlags=*/0,
+      /*memoryBarrierCount=*/1, &full_memory_barrier, 0, nullptr, 0, nullptr);
 
   (next_proc)(command_buffer, std::forward<Args>(args)...);
 
+  // Get the timestamp when the dispatch starts.
+  (write_timestamp_function)(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             timestamp_query_pool, 0);
+  // Ensure the command has completed.
+  (pipeline_barrier_function)(
+      command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /*dependencyFlags=*/0,
+      /*memoryBarrierCount=*/1, &full_memory_barrier, 0, nullptr, 0, nullptr);
   // Get the timestamp after the dispatch ends.
   (write_timestamp_function)(command_buffer,
                              VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
@@ -350,6 +365,7 @@ VkResult RuntimeLayer_CreateDevice(VkPhysicalDevice physical_device,
     // loader and confusing it.
     ASSIGN_PROC(CmdResetQueryPool);
     ASSIGN_PROC(CmdWriteTimestamp);
+    ASSIGN_PROC(CmdPipelineBarrier);
     ASSIGN_PROC(CreateQueryPool);
     ASSIGN_PROC(DestroyQueryPool);
     ASSIGN_PROC(GetQueryPoolResults);
