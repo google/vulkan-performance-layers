@@ -90,6 +90,15 @@ void LayerData::Log(const std::vector<uint64_t>& pipeline,
   fflush(out_);
 }
 
+void LayerData::Log(const std::vector<uint64_t>& pipeline,
+                    const std::string& str) const {
+  absl::MutexLock lock(&log_lock_);
+  // Quote the comma-separated hash value array to always create 2 CSV cells.
+  fprintf(out_, "\"%s\",%s\n", PipelineHashToString(pipeline).c_str(),
+          str.c_str());
+  fflush(out_);
+}
+
 void LayerData::LogTimeDelta() {
   absl::MutexLock lock(&log_lock_);
   auto now = absl::Now();

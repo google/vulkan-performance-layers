@@ -162,6 +162,9 @@ class LayerData {
   // of each shader that is part of the pipeline.
   void Log(const std::vector<uint64_t>& pipeline, uint64_t time) const;
 
+  // Logs an arbitrary string prefixed by the given pipeline.
+  void Log(const std::vector<uint64_t>& pipeline, const std::string& str) const;
+
   // Logs the time since the last call to LogTimeDelta.
   void LogTimeDelta();
 

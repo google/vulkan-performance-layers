@@ -1,0 +1,4 @@
+Pipeline,Run Time (ns),Fragment Shader Invocations,Compute Shader Invocations
+"[0x67d6fd0aaa78a6d8,0x67d390249c2f20ce]",3072,74619,0
+"[0x67d6fd0aaa78a6d8,0x67d390249c2f20ce]",3072,74249,0
+"[0x67d6fd0aaa78a6d8,0x67d390249c2f20ce]",3072,73664,0
