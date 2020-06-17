@@ -14,6 +14,8 @@
 
 #include "runtime_layer_data.h"
 
+#include <inttypes.h>
+
 #if defined(STADIA_PERFORMANCE_LAYERS_NO_GLOG)
 #include <iostream>
 #define LOG(KIND) std::cerr << "[" #KIND "]"
@@ -23,8 +25,9 @@
 
 namespace performancelayers {
 
-VkQueryPool RuntimeLayerData::GetNewTimeStampQueryPool(
-    VkCommandBuffer cmd_buf) {
+bool RuntimeLayerData::GetNewQueryInfo(VkCommandBuffer cmd_buf,
+                                       VkQueryPool* timestamp_query_pool,
+                                       VkQueryPool* stat_query_pool) {
   VkQueryPoolCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
   createInfo.pNext = nullptr;
@@ -32,21 +35,34 @@ VkQueryPool RuntimeLayerData::GetNewTimeStampQueryPool(
   createInfo.queryCount = 2;
 
   VkDevice device = GetDevice(cmd_buf);
-  VkQueryPool timestamp_query_pool;
   auto create_query_pool_function =
       GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreateQueryPool);
-  auto reset_query_pool_function =
-      GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CmdResetQueryPool);
 
-  (create_query_pool_function)(device, &createInfo, nullptr,
-                               &timestamp_query_pool);
-  (reset_query_pool_function)(cmd_buf, timestamp_query_pool, 0,
-                              createInfo.queryCount);
+  auto ret = (create_query_pool_function)(device, &createInfo, nullptr,
+                                          timestamp_query_pool);
+  if (ret != VK_SUCCESS) {
+    return false;
+  }
+
+  createInfo.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
+  createInfo.queryCount = 1;
+  createInfo.pipelineStatistics =
+      VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
+      VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
+  ret = (create_query_pool_function)(device, &createInfo, nullptr,
+                                     stat_query_pool);
+  if (ret != VK_SUCCESS) {
+    auto destroy_query_pool_function =
+        GetNextDeviceProcAddr(device, &VkLayerDispatchTable::DestroyQueryPool);
+    (destroy_query_pool_function)(device, *timestamp_query_pool, nullptr);
+    return false;
+  }
 
   absl::MutexLock lock(&timestamp_queries_lock_);
   timestamp_queries_.push_back(
-      {timestamp_query_pool, cmd_buf, GetPipeline(cmd_buf)});
-  return timestamp_query_pool;
+      {*timestamp_query_pool, *stat_query_pool, cmd_buf, GetPipeline(cmd_buf)});
+
+  return true;
 }
 
 void RuntimeLayerData::LogAndRemoveQueryPools() {
@@ -63,7 +79,7 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
     constexpr uint64_t kInvalidValue = ~uint64_t(0);
     uint64_t query_data[2] = {kInvalidValue, kInvalidValue};
     VkResult result = (query_pool_results_function)(
-        device, info->query_pool,
+        device, info->timestamp_pool,
         /*firstQuery=*/0, /*queryCount=*/2,
         /*dataSize=*/sizeof(query_data), /*pData=*/&query_data,
         /*stride=*/sizeof(uint64_t),
@@ -105,14 +121,28 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
       continue;
     }
 
+    uint64_t invocations[2] = {};
+    result = (query_pool_results_function)(
+        device, info->stat_pool,
+        /*firstQuery=*/0, /*queryCount=*/1,
+        /*dataSize=*/sizeof(invocations), /*pData=*/invocations,
+        /*stride=*/sizeof(invocations[0]),
+        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    if (result != VK_SUCCESS) {
+      discard_result = true;
+    }
+
     if (!discard_result) {
       // FIXME: We should adjust the elapsed units to account for the current
       // GPU frequency. Calling vkGetPhysicalDeviceProperties here causes the
       // driver to crash, however.
-      Log(GetPipelineHash(info->pipeline), timestamp1 - timestamp0);
+      Log(GetPipelineHash(info->pipeline),
+          absl::StrCat(timestamp1 - timestamp0, ",", invocations[0], ",",
+                       invocations[1]));
     }
 
-    (destroy_query_pool_function)(device, info->query_pool, nullptr);
+    (destroy_query_pool_function)(device, info->timestamp_pool, nullptr);
+    (destroy_query_pool_function)(device, info->stat_pool, nullptr);
     // Remove the current query from the queue.
     using std::swap;
     swap(*info, timestamp_queries_.back());

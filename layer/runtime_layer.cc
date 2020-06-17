@@ -169,41 +169,26 @@ VKAPI_ATTR void RuntimeLayer_CmdDispatch(VkCommandBuffer command_buffer,
                                          uint32_t group_count_y,
                                          uint32_t group_count_z) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-
-  VkQueryPool timestamp_query_pool =
-      layer_data->GetNewTimeStampQueryPool(command_buffer);
   VkDevice device = layer_data->GetDevice(command_buffer);
-  auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdWriteTimestamp);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CmdDispatch);
 
-  // Get the timestamp before the dispatch starts.
-  (write_timestamp_function)(command_buffer,
-                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                             timestamp_query_pool, 0);
-
-  (next_proc)(command_buffer, group_count_x, group_count_y, group_count_z);
-
-  // Get the timestamp after the dispatch ends.
-  (write_timestamp_function)(command_buffer,
-                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                             timestamp_query_pool, 1);
-}
-
-template <typename TFuncPtr, typename... Args>
-static void WrapCallWithTimestamp(TFuncPtr func_ptr,
-                                  VkCommandBuffer command_buffer,
-                                  Args&&... args) {
-  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  VkQueryPool timestamp_query_pool =
-      layer_data->GetNewTimeStampQueryPool(command_buffer);
-  VkDevice device = layer_data->GetDevice(command_buffer);
+  VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
+  VkQueryPool stat_query_pool = VK_NULL_HANDLE;
+  if (!layer_data->GetNewQueryInfo(command_buffer, &timestamp_query_pool,
+                                   &stat_query_pool)) {
+    // Couldn't allocate query pool - continue as if no tracing is in place.
+    (next_proc)(command_buffer, group_count_x, group_count_y, group_count_z);
+    return;
+  }
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CmdWriteTimestamp);
+  auto begin_query_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdBeginQuery);
+  auto end_query_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdEndQuery);
   auto pipeline_barrier_function = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CmdPipelineBarrier);
-  auto next_proc = layer_data->GetNextDeviceProcAddr(device, func_ptr);
 
   // Ensure any previous commands have completed.
   VkMemoryBarrier full_memory_barrier = {
@@ -214,6 +199,62 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
       command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /*dependencyFlags=*/0,
       /*memoryBarrierCount=*/1, &full_memory_barrier, 0, nullptr, 0, nullptr);
+  (begin_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0,
+                         /*flags=*/0);
+
+  (next_proc)(command_buffer, group_count_x, group_count_y, group_count_z);
+
+  // Get the timestamp when the dispatch starts.
+  (write_timestamp_function)(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             timestamp_query_pool, 0);
+  // Ensure the command has completed.
+  (pipeline_barrier_function)(
+      command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /*dependencyFlags=*/0,
+      /*memoryBarrierCount=*/1, &full_memory_barrier, 0, nullptr, 0, nullptr);
+  // Get the timestamp after the dispatch ends.
+  (write_timestamp_function)(command_buffer,
+                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                             timestamp_query_pool, 1);
+  (end_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0);
+}
+
+template <typename TFuncPtr, typename... Args>
+static void WrapCallWithTimestamp(TFuncPtr func_ptr,
+                                  VkCommandBuffer command_buffer,
+                                  Args&&... args) {
+  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
+  VkDevice device = layer_data->GetDevice(command_buffer);
+  auto next_proc = layer_data->GetNextDeviceProcAddr(device, func_ptr);
+
+  VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
+  VkQueryPool stat_query_pool = VK_NULL_HANDLE;
+  if (!layer_data->GetNewQueryInfo(command_buffer, &timestamp_query_pool,
+                                   &stat_query_pool)) {
+    // Couldn't allocate query pool - continue as if no tracing is in place.
+    (next_proc)(command_buffer, std::forward<Args>(args)...);
+    return;
+  }
+  auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdWriteTimestamp);
+  auto pipeline_barrier_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdPipelineBarrier);
+  auto begin_query_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdBeginQuery);
+  auto end_query_function = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::CmdEndQuery);
+
+  // Ensure any previous commands have completed.
+  VkMemoryBarrier full_memory_barrier = {
+      VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+      VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
+      VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
+  (pipeline_barrier_function)(
+      command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /*dependencyFlags=*/0,
+      /*memoryBarrierCount=*/1, &full_memory_barrier, 0, nullptr, 0, nullptr);
+  (begin_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0,
+                         /*flags=*/0);
 
   (next_proc)(command_buffer, std::forward<Args>(args)...);
 
@@ -229,6 +270,7 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
   (write_timestamp_function)(command_buffer,
                              VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                              timestamp_query_pool, 1);
+  (end_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0);
 }
 
 // Override for vkCmdDraw.  Adds commands to write timestamps before and
@@ -365,6 +407,8 @@ VkResult RuntimeLayer_CreateDevice(VkPhysicalDevice physical_device,
     // loader and confusing it.
     ASSIGN_PROC(CmdResetQueryPool);
     ASSIGN_PROC(CmdWriteTimestamp);
+    ASSIGN_PROC(CmdBeginQuery);
+    ASSIGN_PROC(CmdEndQuery);
     ASSIGN_PROC(CmdPipelineBarrier);
     ASSIGN_PROC(CreateQueryPool);
     ASSIGN_PROC(DestroyQueryPool);

@@ -29,15 +29,18 @@ namespace performancelayers {
 // log file.
 class RuntimeLayerData : public LayerData {
  private:
-  struct TimestampInfo {
-    VkQueryPool query_pool;
+  struct QueryInfo {
+    VkQueryPool timestamp_pool;
+    VkQueryPool stat_pool;
     VkCommandBuffer command_buffer;
     VkPipeline pipeline;
   };
 
  public:
   explicit RuntimeLayerData(char* log_filename)
-      : LayerData(log_filename, "Pipeline,Run Time (ns)") {}
+      : LayerData(log_filename,
+                  "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
+                  "Shader Invocations") {}
 
   // Records the device that owns |cmd_buffer|.
   void SetDevice(void* cmd_buffer, VkDevice device) {
@@ -68,7 +71,9 @@ class RuntimeLayerData : public LayerData {
 
   // Allocates and returns a new query pool to be used in the command buffer
   // |cmd_buf|.
-  VkQueryPool GetNewTimeStampQueryPool(VkCommandBuffer cmd_buf);
+  bool GetNewQueryInfo(VkCommandBuffer cmd_buf,
+                       VkQueryPool* timestamp_query_pool,
+                       VkQueryPool* stat_query_pool);
 
   // Allocates a new fence object, and returns a handle to it.
   VkFence GetNewFence(VkDevice device);
@@ -94,7 +99,7 @@ class RuntimeLayerData : public LayerData {
   mutable absl::Mutex timestamp_queries_lock_;
   // The set of query pools used for the time stamps and their corresponding
   // pipelines.
-  std::vector<TimestampInfo> timestamp_queries_
+  std::vector<QueryInfo> timestamp_queries_
       ABSL_GUARDED_BY(timestamp_queries_lock_);
 };
 
