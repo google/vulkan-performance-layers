@@ -19,7 +19,9 @@ comma=""
 for cur in $@
 do
   lines=$(wc -l "${cur?}" | awk '{print $1}')
-  title=$(echo "${cur?}" | tr '_' '-')
+  base=$(basename "${cur?}")
+  dirname=$(basename $(dirname "${cur?}"))
+  title=$(echo "${dirname?}"/"${base?}" | tr '_' '-')
   plot="${plot?}${comma?}'${cur?}' u (\$1/1000000):(1/${lines?}.) smooth cumulative w l t '${title?}'"
   comma=", "
 done
