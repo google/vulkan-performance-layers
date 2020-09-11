@@ -14,11 +14,14 @@
 
 #include <inttypes.h>
 
+#include <cstdint>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <string>
 
 #include "layer_data.h"
+#include "log_scanner.h"
 
 #undef VK_LAYER_EXPORT
 #ifndef _WIN32
@@ -39,12 +42,27 @@ constexpr char kLayerDescription[] = "Stadia Frame Time Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_FRAME_TIME_LOG";
 constexpr char kExitAfterFrameEnvVar[] = "VK_FRAME_TIME_EXIT_AFTER_FRAME";
 constexpr char kFinishFileEnvVar[] = "VK_FRAME_TIME_FINISH_FILE";
+constexpr char kBenchmarkWatchFileEnvVar[] =
+    "VK_FRAME_TIME_BENCHMARK_WATCH_FILE";
+constexpr char kBenchmarkStartStringEnvVar[] =
+    "VK_FRAME_TIME_BENCHMARK_START_STRING";
 
 class FrameTimeLayerData : public performancelayers::LayerData {
  public:
-  FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid)
-      : LayerData(log_filename, "Frame Time (ns)"),
-        exit_frame_num_or_invalid_(exit_frame_num_or_invalid) {}
+  FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
+                     const char* benchmark_watch_filename,
+                     const char* benchmark_start_string)
+      : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
+        exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
+        benchmark_start_pattern_(benchmark_start_string) {
+    if (!benchmark_watch_filename || strlen(benchmark_watch_filename) == 0)
+      return;
+
+    benchmark_log_scanner_ =
+        performancelayers::LogScanner::FromFilename(benchmark_watch_filename);
+    if (benchmark_log_scanner_)
+      benchmark_log_scanner_->RegisterWatchedPattern(benchmark_start_pattern_);
+  }
 
   ~FrameTimeLayerData() override;
 
@@ -67,9 +85,18 @@ class FrameTimeLayerData : public performancelayers::LayerData {
   uint64_t IncrementFrameNum() { return ++current_frame_num_; }
   uint64_t GetExitFrameNum() const { return exit_frame_num_or_invalid_; }
 
+  // Returns true if the benchmark gameplay start has been detected.
+  // If benchmark start detection is not configured (through env vars),
+  // assumes that the benchmarks begins with the first frame.
+  bool HasBenchmarkStarted();
+
  private:
   const uint64_t exit_frame_num_or_invalid_;
   uint64_t current_frame_num_ = 0;
+
+  uint32_t benchmark_state_idx_ = 0;
+  std::string benchmark_start_pattern_;
+  std::optional<performancelayers::LogScanner> benchmark_log_scanner_;
 
   mutable absl::Mutex queue_to_device_lock_;
   // The map from a queue to the device that owns it.
@@ -90,8 +117,9 @@ FrameTimeLayerData* GetLayerData() {
   };
 
   // Don't use new -- make the destructor run when the layer gets unloaded.
-  static FrameTimeLayerData layer_data(getenv(kLogFilenameEnvVar),
-                                       GetExitAfterFrameVal());
+  static FrameTimeLayerData layer_data(
+      getenv(kLogFilenameEnvVar), GetExitAfterFrameVal(),
+      getenv(kBenchmarkWatchFileEnvVar), getenv(kBenchmarkStartStringEnvVar));
   return &layer_data;
 }
 
@@ -117,6 +145,20 @@ void CreateFinishIndicatorFile(const char* finishCause) {
   fclose(finish_file);
 }
 
+bool FrameTimeLayerData::HasBenchmarkStarted() {
+  if (benchmark_state_idx_ > 0 || benchmark_start_pattern_.empty()) return true;
+
+  if (!benchmark_log_scanner_) return true;
+
+  if (benchmark_log_scanner_->ConsumeNewLines()) {
+    benchmark_state_idx_ = 1;
+    benchmark_log_scanner_.reset();
+    return true;
+  }
+
+  return false;
+}
+
 FrameTimeLayerData::~FrameTimeLayerData() {
   CreateFinishIndicatorFile("APPLICATION_EXIT");
 }
@@ -128,7 +170,7 @@ FrameTimeLayerData::~FrameTimeLayerData() {
 VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
     VkQueue queue, const VkPresentInfoKHR* present_info) {
   auto* layer_data = GetLayerData();
-  layer_data->LogTimeDelta();
+  layer_data->LogTimeDelta(layer_data->HasBenchmarkStarted() ? ",1" : ",0");
 
   uint64_t frames_elapsed = layer_data->IncrementFrameNum();
   uint64_t exit_frame_num = layer_data->GetExitFrameNum();

@@ -18,3 +18,5 @@ add_subdirectory(abseil-cpp)
 add_library(farmhash STATIC
 	farmhash/src/farmhash.cc
 )
+
+add_subdirectory(googletest)

@@ -16,12 +16,7 @@
 
 #include <inttypes.h>
 
-#if defined(STADIA_PERFORMANCE_LAYERS_NO_GLOG)
-#include <iostream>
-#define LOG(KIND) std::cerr << "[" #KIND "]"
-#else
-#include "base/logging.h"
-#endif
+#include "layer_utils.h"
 
 namespace performancelayers {
 

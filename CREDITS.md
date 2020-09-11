@@ -8,7 +8,8 @@ please submit a patch to this file to add yourself.
    * Design and initial implementation of the compile- and run-time layers.
 0. Jakub Kuderski <kubak@google.com>
    * Concurrency, precision, Vulkan Loader interaction, and logging fixes.
-   * CMake build system support, CI, open-source release.
+   * CMake build system support, unit tests, CI, open-source release.
    * Frame time layer log analysis.
+   * Benchmark start detection.
 0. Brian Watling <bwatling@google.com>
    * Frame time layer.

@@ -99,12 +99,12 @@ void LayerData::Log(const std::vector<uint64_t>& pipeline,
   fflush(out_);
 }
 
-void LayerData::LogTimeDelta() {
+void LayerData::LogTimeDelta(const char* extra_content) {
   absl::MutexLock lock(&log_lock_);
   auto now = absl::Now();
   if (last_log_time_ != absl::InfinitePast()) {
     const int64_t delta = ToInt64Nanoseconds(now - last_log_time_);
-    fprintf(out_, "%" PRId64 "\n", delta);
+    fprintf(out_, "%" PRId64 "%s\n", delta, extra_content);
     fflush(out_);
   }
   last_log_time_ = now;
