@@ -22,9 +22,10 @@ set(CMAKE_CXX_STANDARD 17)
 # Disable C++ exceptions.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
+set(FILESYSTEM_LIB_NAME stdc++fs)
+
 # Abseil requires PIC.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-
 
 # Add external dependencies.
 add_subdirectory(third_party)
@@ -95,6 +96,7 @@ target_compile_definitions(VkLayer_stadia_pipeline_runtime PRIVATE
 
 add_library(VkLayer_stadia_frame_time SHARED
     layer/layer_data.cc
+    layer/log_scanner.cc
     layer/frame_time_layer.cc
 )
 target_include_directories(VkLayer_stadia_frame_time PRIVATE
@@ -123,3 +125,34 @@ install(TARGETS
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
         DESTINATION ${CMAKE_INSTALL_PREFIX}
         FILES_MATCHING PATTERN "*.json")
+
+enable_testing()
+add_executable(layer_support_tests
+    layer/layer_data.cc
+    layer/log_scanner.cc
+    units/log_scanner_tests.cc
+)
+target_include_directories(layer_support_tests PRIVATE
+    layer
+    ${VulkanHeaders_INCLUDE_DIR}
+    ${VulkanLoaderGenerated_INCLUDE_DIR}
+    third_party/farmhash/src
+    third_party/googletest/googletest/include
+)
+target_link_libraries(layer_support_tests PRIVATE
+    absl::flat_hash_map
+    absl::strings
+    absl::str_format
+    absl::synchronization
+    farmhash
+    gtest
+    gtest_main
+    ${FILESYSTEM_LIB_NAME}
+)
+target_compile_definitions(layer_support_tests PRIVATE
+	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
+)
+add_test(layer_support_tests layer_support_tests)
+add_custom_target(check COMMAND layer_support_tests)
+add_dependencies(check layer_support_tests)
+

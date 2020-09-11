@@ -166,7 +166,7 @@ class LayerData {
   void Log(const std::vector<uint64_t>& pipeline, const std::string& str) const;
 
   // Logs the time since the last call to LogTimeDelta.
-  void LogTimeDelta();
+  void LogTimeDelta(const char* extra_content = "");
 
   // Returns a string identifier of |pipeline|.
   std::string PipelineHashToString(const std::vector<uint64_t>& pipeline) const;

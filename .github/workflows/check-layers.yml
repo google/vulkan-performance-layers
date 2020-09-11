@@ -9,6 +9,7 @@ jobs:
     name: Check (${{ matrix.config }}, ${{ matrix.compiler }}, ${{ matrix.generator }})
     runs-on: ${{ matrix.host-os }}
     strategy:
+      fail-fast: false
       matrix:
         host-os:    ["ubuntu-latest"]
         config:     [Debug, Release]

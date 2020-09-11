@@ -21,16 +21,18 @@
 #                   --build-arg COMPILER=clang                   \
 #                   --build-arg GENERATOR=Ninja
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 ARG CONFIG
 ARG COMPILER
 ARG GENERATOR
 
 # Install required packages.
-RUN apt-get update \
+RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
+    && apt-get update \
     && apt-get install -yqq --no-install-recommends \
-      build-essential cmake gcc g++ clang-8 ninja-build binutils-gold \
+      build-essential gcc g++ clang-9 ninja-build cmake binutils-gold \
+      libc++-9-dev libc++abi-9-dev \
       python python-distutils-extra python3 python3-distutils \
       git vim-tiny \
       libglm-dev libxcb-dri3-0 libxcb-present0 libpciaccess0 \
@@ -38,8 +40,8 @@ RUN apt-get update \
       libmirclient-dev libwayland-dev libxrandr-dev libxcb-ewmh-dev \
     && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10 \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 10 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 10
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-9 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-9 10
 
 COPY . /performance-layers
 
@@ -58,14 +60,19 @@ RUN git clone https://github.com/KhronosGroup/Vulkan-Headers.git \
 
 # Build performance layers.
 WORKDIR /performance-layers/build
-RUN cmake .. \
+RUN  CXX_COMPILER="g++" \
+     && if [ "$COMPILER" = "clang" ] ; then \
+          CXX_COMPILER="clang++" ; \
+        fi \
+     && cmake .. \
       -G "$GENERATOR" \
       -DCMAKE_C_COMPILER="$COMPILER" \
-      -DCMAKE_CXX_COMPILER="$COMPILER" \
+      -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
       -DCMAKE_BUILD_TYPE="$CONFIG" \
       -DCMAKE_INSTALL_PREFIX=run \
       -DVULKAN_HEADERS_INSTALL_DIR=/dependencies/vulkan-headers-build/run \
       -DVULKAN_LOADER_GENERATED_DIR=/dependencies/Vulkan-Loader/loader/generated \
     && cmake --build . \
+    && cmake --build . --target check \
     && cmake --build . --target install
 
