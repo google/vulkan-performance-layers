@@ -40,9 +40,11 @@ class FrameTimeResult(object):
         self.path = ""
         self.run_name = ""
         self.raw_frametimes = []
+        self.frame_states = []
         self.total_duration_ms = -1
         self.average_frametime_ms = -1
         self.percentile_frametime_ms = []
+        self.state_to_duration_ms = {}
 
     @staticmethod
     def from_file(log_path, drop_first_seconds=None):
@@ -53,14 +55,17 @@ class FrameTimeResult(object):
         result = FrameTimeResult()
         result.path = full_path
         result.run_name = parent_dir + '/' + base
+        seen_states = set()
 
         with open(full_path) as csvfile:
             log_file = csv.reader(csvfile)
             for i, row in enumerate(log_file):
                 if i == 0:
                     continue
-                assert len(row) == 1
+                assert len(row) == 2
                 result.raw_frametimes.append(int(row[0]))
+                result.frame_states.append(int(row[1]))
+                seen_states.add(int(row[1]))
 
         if drop_first_seconds is not None and drop_first_seconds > 0:
             drop_first_nanos = drop_first_seconds * result.NanosPerSecond
@@ -74,6 +79,7 @@ class FrameTimeResult(object):
                 drop_end += 1
 
             result.raw_frametimes = result.raw_frametimes[drop_end:]
+            result.frame_states = result.frame_states[drop_end:]
 
             # It's not enough to update the raw data. We also need to create
             # a temporary file that will be processed by gnuplot (`plot_frame_times.sh`).
@@ -88,6 +94,15 @@ class FrameTimeResult(object):
         result.total_duration_ms = np.sum(result.raw_frametimes) / nanos_per_millis
         result.average_frametime_ms = np.average(result.raw_frametimes) / nanos_per_millis
         result.percentile_frametime_ms = [np.percentile(result.raw_frametimes, p) / nanos_per_millis for p in range(100)]
+
+        for state in sorted(seen_states):
+            nanos_in_state = 0
+            for ft_ns, frame_state in zip(result.raw_frametimes, result.frame_states):
+                if frame_state == state:
+                    nanos_in_state += ft_ns
+
+            result.state_to_duration_ms[state] = nanos_in_state / nanos_per_millis
+
         return result
 
     def p50(self):
@@ -109,14 +124,28 @@ class FrameTimeResult(object):
         '''Returns the percent of frames that lasted more than the target frametime'''
         return np.average([1 if x > self.TargetFrameTime else 0 for x in self.raw_frametimes]) * 100
 
+    def time_in_state(self, state_idx):
+        '''
+        Returns the total number of milliseconds spent in |state_idx|.
+        If no frame time was spent in a given state, returns 0.
+        '''
+        if state_idx in self.state_to_duration_ms:
+            return self.state_to_duration_ms[state_idx]
+        return 0
+
     def fps_over_time(self):
         duration_s = int(self.total_duration_ms / 1000) + 1
-        bins = [0] * duration_s
+        bins = [(0, 0)] * duration_s
         curr_duration_ns = 0
-        for frame_time in self.raw_frametimes:
+
+        assert len(self.raw_frametimes) == len(self.frame_states)
+        for frame_time, frame_state in zip(self.raw_frametimes, self.frame_states):
             curr_duration_ns += frame_time
             bin_idx = int(curr_duration_ns / self.NanosPerSecond)
-            bins[bin_idx] += 1
+            # Arbitrarily decide to keep the latest frame state in the current bin.
+            # Instead, we could also get the longest state within this state, first one,
+            # or decide some other way.
+            bins[bin_idx] = (bins[bin_idx][0] + 1, frame_state)
 
         return bins
 
@@ -124,9 +153,13 @@ class FrameTimeResult(object):
         print(f'{self.run_name}:\tduration: {self.total_duration_ms:.3f} ms,\taverage: {self.average_frametime_ms:.3f} ms')
         print(f'\t\tmedian: {self.median():.3f} ms,\tp90: {self.p90():.3f} ms,\t\t\tp95: {self.p95():.3f} ms')
         print(f'\t\tmissed frames: {self.percent_missed():.3f}%')
+        for state, ms in self.state_to_duration_ms.items():
+            print(f'\t\ttime in state {state}: {ms:.3f} ms')
 
 
-FrameTimesMetrics = namedtuple('FrameTimesMetrics', ['avg', 'median', 'p90', 'p95', 'missed_percent'])
+FrameTimesMetrics = namedtuple('FrameTimesMetrics',
+                               ['avg', 'median', 'p90', 'p95',
+                                'missed_percent', 'init_time'])
 
 class SummaryKind(Enum):
     ABSOLUTE = 1
@@ -171,7 +204,8 @@ def summarize_frame_times(results, summary_fns):
         p90 = summary_fn.fn([x.p90() for x in results])
         p95 = summary_fn.fn([x.p95() for x in results])
         missed_percent = summary_fn.fn([x.percent_missed() for x in results])
-        metrics = FrameTimesMetrics(avg, median, p90, p95, missed_percent)
+        init_time = summary_fn.fn([x.time_in_state(0) for x in results])
+        metrics = FrameTimesMetrics(avg, median, p90, p95, missed_percent, init_time)
         summaries.append(FrameTimesSummary(summary_fn, metrics))
 
     return summaries
@@ -250,9 +284,11 @@ def main():
         p95_fps_over_time = sorted_results[high_p95_idx].fps_over_time()
         with open(dataset_name + '_fps.csv', 'w') as fps_file:
             fps_csv = csv.writer(fps_file)
-            fps_csv.writerow(('Second', 'Low', 'Median', 'High'))
+            fps_csv.writerow(('Second', 'Low FPS', 'Low State',
+                              'Median FPS', 'Median State',
+                              'High FPS', 'High State'))
             for i, (x, y, z) in enumerate(zip(p5_fps_over_time, median_fps_over_time, p95_fps_over_time)):
-                fps_csv.writerow((i, x, y, z))
+                fps_csv.writerow((i, x[0], x[1], y[0], y[1], z[0], z[1]))
             print('Fps saved as: ' + dataset_name + '_fps.csv')
         print('---------------------------------------------------------------------\n')
 
