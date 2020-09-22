@@ -60,10 +60,25 @@ class LayerData {
     return instance_dispatch_map_.insert({instance, dispatch_table}).second;
   }
 
-  // Removes the dispatch table associated with |instance|.
-  void RemoveInstance(VkInstance instance) {
-    absl::MutexLock lock(&instance_dispatch_lock_);
-    instance_dispatch_map_.erase(instance);
+  // Removes the dispatch table and physical devices associated with |instance|.
+  void RemoveInstance(VkInstance instance);
+
+  // Records that the physical device |gpu| is associated with |instance|.
+  void AddPhysicalDevice(VkInstance instance, VkPhysicalDevice gpu) {
+    absl::MutexLock lock(&gpu_instance_lock_);
+    assert((gpu_instance_map_.count(gpu) == 0 ||
+            gpu_instance_map_[gpu] == instance) &&
+           "PhysicalDevice already bound to another Instance");
+    gpu_instance_map_[gpu] = instance;
+  }
+
+  // Returns the instance associated with |gpu|, or a null handle if there is
+  // none.
+  VkInstance GetInstance(VkPhysicalDevice gpu) const {
+    absl::MutexLock lock(&gpu_instance_lock_);
+    if (auto it = gpu_instance_map_.find(gpu); it != gpu_instance_map_.end())
+      return it->second;
+    return VK_NULL_HANDLE;
   }
 
   // Records the dispatch table and get_device_proc_addr associated with
@@ -187,6 +202,12 @@ class LayerData {
       std::function<VkLayerInstanceDispatchTable(PFN_vkGetInstanceProcAddr)>
           get_dispatch_table);
 
+  // Call the next procedure for VkEnumeratePhysicalDevices and associates
+  // |instance| with the returned |pPhysicalDevices|.
+  VkResult EnumeratePhysicalDevices(VkInstance instance,
+                                    uint32_t* pPhysicalDeviceCount,
+                                    VkPhysicalDevice* pPhysicalDevices);
+
   // Builds the shader module by calling |CreateShaderModule| for the next
   // layer, and records the hash of the resulting shader module.
   VKAPI_ATTR VkResult CreateShaderModule(
@@ -202,6 +223,11 @@ class LayerData {
   mutable absl::Mutex device_dispatch_lock_;
   // A map from a VkDevice to its VkLayerDispatchTable.
   DeviceDispatchMap device_dispatch_map_ ABSL_GUARDED_BY(device_dispatch_lock_);
+
+  mutable absl::Mutex gpu_instance_lock_;
+  // A map from a VkPhysicalDevice to its VkInstance.
+  absl::flat_hash_map<VkPhysicalDevice, VkInstance> gpu_instance_map_
+      ABSL_GUARDED_BY(gpu_instance_lock_);
 
   mutable absl::Mutex shader_hash_lock_;
   // The map from a shader module to the result of its hash.

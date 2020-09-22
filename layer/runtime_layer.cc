@@ -27,6 +27,8 @@
 #define VK_LAYER_EXPORT extern "C" _declspec(dllexport)
 #endif
 
+#define VK_LAYER_PROC(ReturnType) VKAPI_ATTR ReturnType VKAPI_CALL
+
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -51,8 +53,9 @@ performancelayers::RuntimeLayerData* GetLayerData() {
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the
 // layer data.
-void RuntimeLayer_DestroyInstance(VkInstance instance,
-                                  const VkAllocationCallbacks* allocator) {
+VK_LAYER_PROC(void)
+RuntimeLayer_DestroyInstance(VkInstance instance,
+                             const VkAllocationCallbacks* allocator) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
@@ -62,19 +65,21 @@ void RuntimeLayer_DestroyInstance(VkInstance instance,
 
 // Override for vkCreateInstance.  Creates the dispatch table for this instance
 // and add it to the layer data.
-VkResult RuntimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
-                                     const VkAllocationCallbacks* allocator,
-                                     VkInstance* instance) {
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
+                            const VkAllocationCallbacks* allocator,
+                            VkInstance* instance) {
   auto build_dispatch_table =
       [instance](PFN_vkGetInstanceProcAddr get_proc_addr) {
         // Build dispatch table for the instance functions we need to call.
-        VkLayerInstanceDispatchTable dispatch_table;
+        VkLayerInstanceDispatchTable dispatch_table{};
 
     // Get the next layer's instance of the instance functions we will override.
 #define ASSIGN_PROC(name) \
   dispatch_table.name =   \
       reinterpret_cast<PFN_vk##name>(get_proc_addr(*instance, "vk" #name))
         ASSIGN_PROC(DestroyInstance);
+        ASSIGN_PROC(EnumeratePhysicalDevices);
         ASSIGN_PROC(GetInstanceProcAddr);
 #undef ASSIGN_PROC
         return dispatch_table;
@@ -90,7 +95,8 @@ VkResult RuntimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
 
 // Override for vkCreateComputePipelines.  Measures the time it takes to compile
 // the pipeline, and logs the result.
-VKAPI_ATTR VkResult RuntimeLayer_CreateComputePipelines(
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_CreateComputePipelines(
     VkDevice device, VkPipelineCache pipeline_cache, uint32_t create_info_count,
     const VkComputePipelineCreateInfo* create_infos,
     const VkAllocationCallbacks* alloc_callbacks, VkPipeline* pipelines) {
@@ -112,7 +118,8 @@ VKAPI_ATTR VkResult RuntimeLayer_CreateComputePipelines(
 
 // Override for vkCreateGraphicsPipelines.  Measures the time it takes to
 // compile the pipeline, and logs the result.
-VKAPI_ATTR VkResult RuntimeLayer_CreateGraphicsPipelines(
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_CreateGraphicsPipelines(
     VkDevice device, VkPipelineCache pipeline_cache, uint32_t create_info_count,
     const VkGraphicsPipelineCreateInfo* create_infos,
     const VkAllocationCallbacks* alloc_callbacks, VkPipeline* pipelines) {
@@ -134,7 +141,8 @@ VKAPI_ATTR VkResult RuntimeLayer_CreateGraphicsPipelines(
 
 // Override for vkAllocateCommandBuffers.  Records the device for the command
 // buffer that was allocated.
-VKAPI_ATTR VkResult RuntimeLayer_AllocateCommandBuffers(
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_AllocateCommandBuffers(
     VkDevice device, const VkCommandBufferAllocateInfo* allocate_info,
     VkCommandBuffer* command_buffers) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
@@ -150,9 +158,10 @@ VKAPI_ATTR VkResult RuntimeLayer_AllocateCommandBuffers(
 
 // Override for vkCmdBindPipeline.  Records the pipeline as the last pipeline
 // bound for the command buffer.
-VKAPI_ATTR void RuntimeLayer_CmdBindPipeline(
-    VkCommandBuffer command_buffer, VkPipelineBindPoint pipeline_bind_point,
-    VkPipeline pipeline) {
+VK_LAYER_PROC(void)
+RuntimeLayer_CmdBindPipeline(VkCommandBuffer command_buffer,
+                             VkPipelineBindPoint pipeline_bind_point,
+                             VkPipeline pipeline) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc =
       layer_data->GetNextDeviceProcAddr(layer_data->GetDevice(command_buffer),
@@ -275,11 +284,10 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
 
 // Override for vkCmdDraw.  Adds commands to write timestamps before and
 // after the draw command that will be added.
-VKAPI_ATTR void RuntimeLayer_CmdDraw(VkCommandBuffer command_buffer,
-                                     uint32_t vertex_count,
-                                     uint32_t instance_count,
-                                     uint32_t first_vertex,
-                                     uint32_t first_instance) {
+VK_LAYER_PROC(void)
+RuntimeLayer_CmdDraw(VkCommandBuffer command_buffer, uint32_t vertex_count,
+                     uint32_t instance_count, uint32_t first_vertex,
+                     uint32_t first_instance) {
   WrapCallWithTimestamp(&VkLayerDispatchTable::CmdDraw, command_buffer,
                         vertex_count, instance_count, first_vertex,
                         first_instance);
@@ -287,12 +295,11 @@ VKAPI_ATTR void RuntimeLayer_CmdDraw(VkCommandBuffer command_buffer,
 
 // Override for vkCmdDrawIndexed.  Adds commands to write timestamps before and
 // after the draw command that will be added.
-VKAPI_ATTR void RuntimeLayer_CmdDrawIndexed(VkCommandBuffer command_buffer,
-                                            uint32_t index_count,
-                                            uint32_t instance_count,
-                                            uint32_t first_index,
-                                            int32_t vertex_offset,
-                                            uint32_t first_instance) {
+VK_LAYER_PROC(void)
+RuntimeLayer_CmdDrawIndexed(VkCommandBuffer command_buffer,
+                            uint32_t index_count, uint32_t instance_count,
+                            uint32_t first_index, int32_t vertex_offset,
+                            uint32_t first_instance) {
   WrapCallWithTimestamp(&VkLayerDispatchTable::CmdDrawIndexed, command_buffer,
                         index_count, instance_count, first_index, vertex_offset,
                         first_instance);
@@ -300,27 +307,28 @@ VKAPI_ATTR void RuntimeLayer_CmdDrawIndexed(VkCommandBuffer command_buffer,
 
 // Override for vkCmdDrawIndirect.  Adds commands to write timestamps before and
 // after the draw command that will be added.
-VKAPI_ATTR void RuntimeLayer_CmdDrawIndirect(VkCommandBuffer command_buffer,
-                                             VkBuffer buffer,
-                                             VkDeviceSize offset,
-                                             uint32_t draw_count,
-                                             uint32_t stride) {
+VK_LAYER_PROC(void)
+RuntimeLayer_CmdDrawIndirect(VkCommandBuffer command_buffer, VkBuffer buffer,
+                             VkDeviceSize offset, uint32_t draw_count,
+                             uint32_t stride) {
   WrapCallWithTimestamp(&VkLayerDispatchTable::CmdDrawIndirect, command_buffer,
                         buffer, offset, draw_count, stride);
 }
 
 // Override for vkCmdDrawIndexedIndirect.  Adds commands to write timestamps
 // before and after the draw command that will be added.
-VKAPI_ATTR void RuntimeLayer_CmdDrawIndexedIndirect(
-    VkCommandBuffer command_buffer, VkBuffer buffer, VkDeviceSize offset,
-    uint32_t draw_count, uint32_t stride) {
+VK_LAYER_PROC(void)
+RuntimeLayer_CmdDrawIndexedIndirect(VkCommandBuffer command_buffer,
+                                    VkBuffer buffer, VkDeviceSize offset,
+                                    uint32_t draw_count, uint32_t stride) {
   WrapCallWithTimestamp(&VkLayerDispatchTable::CmdDrawIndexedIndirect,
                         command_buffer, buffer, offset, draw_count, stride);
 }
 
 // Override for vkDeviceWaitIdle. Checks for timestamps that are available after
 // waiting.
-VKAPI_ATTR VkResult RuntimeLayer_DeviceWaitIdle(VkDevice device) {
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_DeviceWaitIdle(VkDevice device) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DeviceWaitIdle);
@@ -331,7 +339,8 @@ VKAPI_ATTR VkResult RuntimeLayer_DeviceWaitIdle(VkDevice device) {
 
 // Override for vkQueueWaitIdle.  Checks for timestamps that are available after
 // waiting.
-VKAPI_ATTR VkResult RuntimeLayer_QueueWaitIdle(VkQueue queue) {
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_QueueWaitIdle(VkQueue queue) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       layer_data->GetDevice(queue), &VkLayerDispatchTable::QueueWaitIdle);
@@ -342,10 +351,9 @@ VKAPI_ATTR VkResult RuntimeLayer_QueueWaitIdle(VkQueue queue) {
 
 // Override for vkGetDeviceQueue.  Records the device that owns the queue.
 // after the draw command that will be added.
-VKAPI_ATTR void RuntimeLayer_GetDeviceQueue(VkDevice device,
-                                            uint32_t queue_family_index,
-                                            uint32_t queue_index,
-                                            VkQueue* queue) {
+VK_LAYER_PROC(void)
+RuntimeLayer_GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
+                            uint32_t queue_index, VkQueue* queue) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::GetDeviceQueue);
@@ -356,17 +364,30 @@ VKAPI_ATTR void RuntimeLayer_GetDeviceQueue(VkDevice device,
 
 // Override for vkCreateShaderModule.  Records the hash of the shader module in
 // the layer data.
-VKAPI_ATTR VkResult RuntimeLayer_CreateShaderModule(
-    VkDevice device, const VkShaderModuleCreateInfo* create_info,
-    const VkAllocationCallbacks* allocator, VkShaderModule* shader_module) {
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_CreateShaderModule(VkDevice device,
+                                const VkShaderModuleCreateInfo* create_info,
+                                const VkAllocationCallbacks* allocator,
+                                VkShaderModule* shader_module) {
   return GetLayerData()->CreateShaderModule(device, create_info, allocator,
                                             shader_module);
 }
 
+// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
+// instances. This mapping is used in the vkCreateDevice override.
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_EnumeratePhysicalDevices(VkInstance instance,
+                                      uint32_t* pPhysicalDeviceCount,
+                                      VkPhysicalDevice* pPhysicalDevices) {
+  return GetLayerData()->EnumeratePhysicalDevices(
+      instance, pPhysicalDeviceCount, pPhysicalDevices);
+}
+
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
-void RuntimeLayer_DestroyDevice(VkDevice device,
-                                const VkAllocationCallbacks* allocator) {
+VK_LAYER_PROC(void)
+RuntimeLayer_DestroyDevice(VkDevice device,
+                           const VkAllocationCallbacks* allocator) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
@@ -376,12 +397,13 @@ void RuntimeLayer_DestroyDevice(VkDevice device,
 
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
-VkResult RuntimeLayer_CreateDevice(VkPhysicalDevice physical_device,
-                                   const VkDeviceCreateInfo* create_info,
-                                   const VkAllocationCallbacks* allocator,
-                                   VkDevice* device) {
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_CreateDevice(VkPhysicalDevice physical_device,
+                          const VkDeviceCreateInfo* create_info,
+                          const VkAllocationCallbacks* allocator,
+                          VkDevice* device) {
   auto build_dispatch_table = [device](PFN_vkGetDeviceProcAddr gdpa) {
-    VkLayerDispatchTable dispatch_table;
+    VkLayerDispatchTable dispatch_table{};
 
 #define ASSIGN_PROC(name) \
   dispatch_table.name =   \
@@ -421,7 +443,7 @@ VkResult RuntimeLayer_CreateDevice(VkPhysicalDevice physical_device,
                                       device, build_dispatch_table);
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL
+VK_LAYER_PROC(VkResult)
 RuntimeLayer_EnumerateInstanceLayerProperties(uint32_t* property_count,
                                               VkLayerProperties* properties) {
   if (property_count) *property_count = 1;
@@ -437,7 +459,8 @@ RuntimeLayer_EnumerateInstanceLayerProperties(uint32_t* property_count,
   return VK_SUCCESS;
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL RuntimeLayer_EnumerateDeviceLayerProperties(
+VK_LAYER_PROC(VkResult)
+RuntimeLayer_EnumerateDeviceLayerProperties(
     VkPhysicalDevice /* physical_device */, uint32_t* property_count,
     VkLayerProperties* properties) {
   return RuntimeLayer_EnumerateInstanceLayerProperties(property_count,
@@ -452,8 +475,8 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL RuntimeLayer_EnumerateDeviceLayerProperties(
 // Otherwise we call the *GetProcAddr function for the next layer to get the
 // function to be called.
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
-RuntimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
+VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
+    RuntimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
   // Device functions we intercept.
 #define CHECK_FUNC(func_name)                                               \
   if (!strcmp(name, "vk" #func_name)) {                                     \
@@ -485,14 +508,15 @@ RuntimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
   return next_get_proc_addr(device, name);
 }
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
-RuntimeLayer_GetInstanceProcAddr(VkInstance instance, const char* name) {
+VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
+    RuntimeLayer_GetInstanceProcAddr(VkInstance instance, const char* name) {
 #define CHECK_FUNC(func_name)                                               \
   if (!strcmp(name, "vk" #func_name)) {                                     \
     return reinterpret_cast<PFN_vkVoidFunction>(&RuntimeLayer_##func_name); \
   }
   CHECK_FUNC(GetInstanceProcAddr);
   CHECK_FUNC(EnumerateInstanceLayerProperties);
+  CHECK_FUNC(EnumeratePhysicalDevices);
   CHECK_FUNC(DestroyInstance);
   CHECK_FUNC(CreateInstance);
   CHECK_FUNC(CreateDevice);

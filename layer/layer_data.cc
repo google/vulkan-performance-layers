@@ -15,8 +15,10 @@
 #include "layer_data.h"
 
 #include <inttypes.h>
+
 #include <cstdint>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -79,6 +81,22 @@ LayerData::LayerData(char* log_filename, const char* header) {
   }
   fprintf(out_, "%s\n", header);
   fflush(out_);
+}
+
+void LayerData::RemoveInstance(VkInstance instance) {
+  {
+    absl::MutexLock lock(&instance_dispatch_lock_);
+    instance_dispatch_map_.erase(instance);
+  }
+  {
+    absl::MutexLock lock(&gpu_instance_lock_);
+    absl::flat_hash_set<VkPhysicalDevice> associated_gpus;
+    for (const auto& gpu_instance_pair : gpu_instance_map_)
+      if (gpu_instance_pair.second == instance)
+        associated_gpus.insert(gpu_instance_pair.first);
+
+    for (VkPhysicalDevice gpu : associated_gpus) gpu_instance_map_.erase(gpu);
+  }
 }
 
 void LayerData::Log(const std::vector<uint64_t>& pipeline,
@@ -168,16 +186,19 @@ VkResult LayerData::CreateDevice(
     // No loader device create info.
     return VK_ERROR_INITIALIZATION_FAILED;
   }
+  assert(device_create_info->u.pLayerInfo);
 
   PFN_vkGetInstanceProcAddr get_instance_proc_addr =
       device_create_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
   PFN_vkGetDeviceProcAddr get_device_proc_addr =
       device_create_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
+  VkInstance instance = GetInstance(physical_device);
+  assert(instance);
 
   // Create the device after removing the current layer.
   device_create_info->u.pLayerInfo = device_create_info->u.pLayerInfo->pNext;
   auto create_function = reinterpret_cast<PFN_vkCreateDevice>(
-      get_instance_proc_addr(VK_NULL_HANDLE, "vkCreateDevice"));
+      get_instance_proc_addr(instance, "vkCreateDevice"));
   assert(create_function);
   VkResult result =
       create_function(physical_device, create_info, allocator, device);
@@ -197,7 +218,22 @@ VkResult LayerData::CreateDevice(
   return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult LayerData::CreateShaderModule(
+VkResult LayerData::EnumeratePhysicalDevices(
+    VkInstance instance, uint32_t* pPhysicalDeviceCount,
+    VkPhysicalDevice* pPhysicalDevices) {
+  auto next_proc = GetNextInstanceProcAddr(
+      instance, &VkLayerInstanceDispatchTable::EnumeratePhysicalDevices);
+  const VkResult res =
+      next_proc(instance, pPhysicalDeviceCount, pPhysicalDevices);
+
+  if (res == VK_SUCCESS && pPhysicalDeviceCount && pPhysicalDevices)
+    for (uint32_t i = 0, e = *pPhysicalDeviceCount; i != e; ++i)
+      AddPhysicalDevice(instance, pPhysicalDevices[i]);
+
+  return res;
+}
+
+VkResult LayerData::CreateShaderModule(
     VkDevice device, const VkShaderModuleCreateInfo* create_info,
     const VkAllocationCallbacks* allocator, VkShaderModule* shader_module) {
   auto next_proc =
