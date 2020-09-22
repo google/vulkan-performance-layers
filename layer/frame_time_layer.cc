@@ -30,6 +30,8 @@
 #define VK_LAYER_EXPORT extern "C" _declspec(dllexport)
 #endif
 
+#define VK_LAYER_PROC(ReturnType) VKAPI_ATTR ReturnType VKAPI_CALL
+
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -167,8 +169,9 @@ FrameTimeLayerData::~FrameTimeLayerData() {
 //  Implementation of the instance functions we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
-VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
-    VkQueue queue, const VkPresentInfoKHR* present_info) {
+VK_LAYER_PROC(VkResult)
+FrameTimeLayer_QueuePresentKHR(VkQueue queue,
+                               const VkPresentInfoKHR* present_info) {
   auto* layer_data = GetLayerData();
   layer_data->LogTimeDelta(layer_data->HasBenchmarkStarted() ? ",1" : ",0");
 
@@ -195,10 +198,9 @@ VKAPI_ATTR VkResult FrameTimeLayer_QueuePresentKHR(
   return (next_proc)(queue, present_info);
 }
 
-VKAPI_ATTR void FrameTimeLayer_GetDeviceQueue(VkDevice device,
-                                              uint32_t queue_family_index,
-                                              uint32_t queue_index,
-                                              VkQueue* queue) {
+VK_LAYER_PROC(void)
+FrameTimeLayer_GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
+                              uint32_t queue_index, VkQueue* queue) {
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::GetDeviceQueue);
@@ -208,8 +210,10 @@ VKAPI_ATTR void FrameTimeLayer_GetDeviceQueue(VkDevice device,
   }
 }
 
-VKAPI_ATTR void FrameTimeLayer_GetDeviceQueue2(
-    VkDevice device, const VkDeviceQueueInfo2* queue_info, VkQueue* queue) {
+VK_LAYER_PROC(void)
+FrameTimeLayer_GetDeviceQueue2(VkDevice device,
+                               const VkDeviceQueueInfo2* queue_info,
+                               VkQueue* queue) {
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::GetDeviceQueue2);
@@ -221,8 +225,9 @@ VKAPI_ATTR void FrameTimeLayer_GetDeviceQueue2(
 
 // Override for vkDestroyDevice.  Deletes the entry for |instance| from the
 // layer data.
-void FrameTimeLayer_DestroyInstance(VkInstance instance,
-                                    const VkAllocationCallbacks* allocator) {
+VK_LAYER_PROC(void)
+FrameTimeLayer_DestroyInstance(VkInstance instance,
+                               const VkAllocationCallbacks* allocator) {
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
@@ -238,13 +243,14 @@ VkResult FrameTimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
   auto build_dispatch_table =
       [instance](PFN_vkGetInstanceProcAddr get_proc_addr) {
         // Build dispatch table for the instance functions we need to call.
-        VkLayerInstanceDispatchTable dispatch_table;
+        VkLayerInstanceDispatchTable dispatch_table{};
 
     // Get the next layer's instance of the instance functions we will override.
 #define ASSIGN_PROC(name) \
   dispatch_table.name =   \
       reinterpret_cast<PFN_vk##name>(get_proc_addr(*instance, "vk" #name))
         ASSIGN_PROC(DestroyInstance);
+        ASSIGN_PROC(EnumeratePhysicalDevices);
         ASSIGN_PROC(GetInstanceProcAddr);
 #undef ASSIGN_PROC
         return dispatch_table;
@@ -260,8 +266,9 @@ VkResult FrameTimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
-void FrameTimeLayer_DestroyDevice(VkDevice device,
-                                  const VkAllocationCallbacks* allocator) {
+VK_LAYER_PROC(void)
+FrameTimeLayer_DestroyDevice(VkDevice device,
+                             const VkAllocationCallbacks* allocator) {
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
@@ -269,24 +276,35 @@ void FrameTimeLayer_DestroyDevice(VkDevice device,
   layer_data->RemoveDevice(device);
 }
 
+// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
+// instances. This mapping is used in the vkCreateDevice override.
+VK_LAYER_PROC(VkResult)
+FrameTimeLayer_EnumeratePhysicalDevices(VkInstance instance,
+                                        uint32_t* pPhysicalDeviceCount,
+                                        VkPhysicalDevice* pPhysicalDevices) {
+  return GetLayerData()->EnumeratePhysicalDevices(
+      instance, pPhysicalDeviceCount, pPhysicalDevices);
+}
+
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
-VkResult FrameTimeLayer_CreateDevice(VkPhysicalDevice physical_device,
-                                     const VkDeviceCreateInfo* create_info,
-                                     const VkAllocationCallbacks* allocator,
-                                     VkDevice* device) {
+VK_LAYER_PROC(VkResult)
+FrameTimeLayer_CreateDevice(VkPhysicalDevice physical_device,
+                            const VkDeviceCreateInfo* create_info,
+                            const VkAllocationCallbacks* allocator,
+                            VkDevice* device) {
   auto build_dispatch_table = [device](PFN_vkGetDeviceProcAddr gdpa) {
-    VkLayerDispatchTable dispatch_table;
+    VkLayerDispatchTable dispatch_table{};
 
     // Get the next layer's instance of the device functions we will override.
 #define ASSIGN_PROC(name) \
   dispatch_table.name =   \
       reinterpret_cast<PFN_vk##name>(gdpa(*device, "vk" #name))
-    ASSIGN_PROC(GetDeviceProcAddr);
     ASSIGN_PROC(DestroyDevice);
-    ASSIGN_PROC(QueuePresentKHR);
+    ASSIGN_PROC(GetDeviceProcAddr);
     ASSIGN_PROC(GetDeviceQueue);
     ASSIGN_PROC(GetDeviceQueue2);
+    ASSIGN_PROC(QueuePresentKHR);
 #undef ASSIGN_PROC
     return dispatch_table;
   };
@@ -295,7 +313,7 @@ VkResult FrameTimeLayer_CreateDevice(VkPhysicalDevice physical_device,
                                       device, build_dispatch_table);
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL
+VK_LAYER_PROC(VkResult)
 FrameTimeLayer_EnumerateInstanceLayerProperties(uint32_t* property_count,
                                                 VkLayerProperties* properties) {
   if (property_count) *property_count = 1;
@@ -311,7 +329,7 @@ FrameTimeLayer_EnumerateInstanceLayerProperties(uint32_t* property_count,
   return VK_SUCCESS;
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL
+VK_LAYER_PROC(VkResult)
 FrameTimeLayer_EnumerateDeviceLayerProperties(
     VkPhysicalDevice /* physical_device */, uint32_t* property_count,
     VkLayerProperties* properties) {
@@ -327,8 +345,8 @@ FrameTimeLayer_EnumerateDeviceLayerProperties(
 // Otherwise we call the *GetProcAddr function for the next layer to get the
 // function to be called.
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
-FrameTimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
+VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
+    FrameTimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
   // Device functions we intercept.
 
 #define CHECK_FUNC(func_name)                                                 \
@@ -336,10 +354,10 @@ FrameTimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
     return reinterpret_cast<PFN_vkVoidFunction>(&FrameTimeLayer_##func_name); \
   }
   CHECK_FUNC(DestroyDevice);
-  CHECK_FUNC(QueuePresentKHR);
+  CHECK_FUNC(EnumerateDeviceLayerProperties);
   CHECK_FUNC(GetDeviceQueue);
   CHECK_FUNC(GetDeviceQueue2);
-  CHECK_FUNC(EnumerateDeviceLayerProperties);
+  CHECK_FUNC(QueuePresentKHR);
 #undef CHECK_FUNC
 
   auto* layer_data = GetLayerData();
@@ -351,18 +369,19 @@ FrameTimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
   return next_get_proc_addr(device, name);
 }
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL
-FrameTimeLayer_GetInstanceProcAddr(VkInstance instance, const char* name) {
+VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
+    FrameTimeLayer_GetInstanceProcAddr(VkInstance instance, const char* name) {
 #define CHECK_FUNC(func_name)                                                 \
   if (!strcmp(name, "vk" #func_name)) {                                       \
     return reinterpret_cast<PFN_vkVoidFunction>(&FrameTimeLayer_##func_name); \
   }
-  CHECK_FUNC(GetInstanceProcAddr);
-  CHECK_FUNC(EnumerateInstanceLayerProperties);
-  CHECK_FUNC(DestroyInstance);
-  CHECK_FUNC(CreateInstance);
   CHECK_FUNC(CreateDevice);
+  CHECK_FUNC(CreateInstance);
+  CHECK_FUNC(GetInstanceProcAddr);
+  CHECK_FUNC(DestroyInstance);
   CHECK_FUNC(EnumerateDeviceLayerProperties);
+  CHECK_FUNC(EnumerateInstanceLayerProperties);
+  CHECK_FUNC(EnumeratePhysicalDevices);
 #undef CHECK_FUNC
 
   auto* layer_data = GetLayerData();

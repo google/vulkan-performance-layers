@@ -63,6 +63,7 @@ target_include_directories(VkLayer_stadia_pipeline_compile_time PRIVATE
 )
 target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE
     absl::flat_hash_map
+    absl::flat_hash_set
     absl::strings
     absl::str_format
     absl::synchronization
@@ -85,6 +86,7 @@ target_include_directories(VkLayer_stadia_pipeline_runtime PRIVATE
 )
 target_link_libraries(VkLayer_stadia_pipeline_runtime PRIVATE
     absl::flat_hash_map
+    absl::flat_hash_set
     absl::strings
     absl::str_format
     absl::synchronization
@@ -107,6 +109,7 @@ target_include_directories(VkLayer_stadia_frame_time PRIVATE
 )
 target_link_libraries(VkLayer_stadia_frame_time PRIVATE
     absl::flat_hash_map
+    absl::flat_hash_set
     absl::strings
     absl::str_format
     absl::synchronization
@@ -141,6 +144,7 @@ target_include_directories(layer_support_tests PRIVATE
 )
 target_link_libraries(layer_support_tests PRIVATE
     absl::flat_hash_map
+    absl::flat_hash_set
     absl::strings
     absl::str_format
     absl::synchronization
