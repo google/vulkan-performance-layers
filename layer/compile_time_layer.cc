@@ -285,6 +285,7 @@ VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
   CHECK_FUNC(EnumerateDeviceLayerProperties);
   CHECK_FUNC(EnumerateInstanceLayerProperties);
   CHECK_FUNC(EnumeratePhysicalDevices);
+  CHECK_FUNC(GetDeviceProcAddr);
   CHECK_FUNC(GetInstanceProcAddr);
 #undef CHECK_FUNC
 

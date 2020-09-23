@@ -514,13 +514,14 @@ VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
   if (!strcmp(name, "vk" #func_name)) {                                     \
     return reinterpret_cast<PFN_vkVoidFunction>(&RuntimeLayer_##func_name); \
   }
-  CHECK_FUNC(GetInstanceProcAddr);
+  CHECK_FUNC(CreateDevice);
+  CHECK_FUNC(CreateInstance);
+  CHECK_FUNC(DestroyInstance);
+  CHECK_FUNC(EnumerateDeviceLayerProperties);
   CHECK_FUNC(EnumerateInstanceLayerProperties);
   CHECK_FUNC(EnumeratePhysicalDevices);
-  CHECK_FUNC(DestroyInstance);
-  CHECK_FUNC(CreateInstance);
-  CHECK_FUNC(CreateDevice);
-  CHECK_FUNC(EnumerateDeviceLayerProperties);
+  CHECK_FUNC(GetDeviceProcAddr);
+  CHECK_FUNC(GetInstanceProcAddr);
 #undef CHECK_FUNC
 
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
