@@ -260,6 +260,7 @@ VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
   CHECK_FUNC(CreateShaderModule);
   CHECK_FUNC(DestroyDevice);
   CHECK_FUNC(EnumerateDeviceLayerProperties);
+  CHECK_FUNC(GetDeviceProcAddr);
 #undef CHECK_FUNC
 
   performancelayers::LayerData* layer_data = GetLayerData();

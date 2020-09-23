@@ -355,6 +355,7 @@ VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
   }
   CHECK_FUNC(DestroyDevice);
   CHECK_FUNC(EnumerateDeviceLayerProperties);
+  CHECK_FUNC(GetDeviceProcAddr);
   CHECK_FUNC(GetDeviceQueue);
   CHECK_FUNC(GetDeviceQueue2);
   CHECK_FUNC(QueuePresentKHR);

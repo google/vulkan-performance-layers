@@ -496,6 +496,7 @@ VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
   CHECK_FUNC(CmdDrawIndirect);
   CHECK_FUNC(CmdDrawIndexedIndirect);
   CHECK_FUNC(QueueWaitIdle);
+  CHECK_FUNC(GetDeviceProcAddr);
   CHECK_FUNC(GetDeviceQueue);
 #undef CHECK_FUNC
 
