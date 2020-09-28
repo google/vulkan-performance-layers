@@ -131,7 +131,7 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
       // FIXME: We should adjust the elapsed units to account for the current
       // GPU frequency. Calling vkGetPhysicalDeviceProperties here causes the
       // driver to crash, however.
-      Log(GetPipelineHash(info->pipeline),
+      Log("pipeline_execution", GetPipelineHash(info->pipeline),
           absl::StrCat(timestamp1 - timestamp0, ",", invocations[0], ",",
                        invocations[1]));
     }
