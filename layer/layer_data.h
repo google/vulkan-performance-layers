@@ -172,16 +172,25 @@ class LayerData {
     return pipeline_hash_map_.at(pipeline);
   }
 
-  // Logs the compile time |time| for |pipeline| to the log file.  |pipeline| is
-  // any series of integers that represent the pipeline.  We are using the hash
-  // of each shader that is part of the pipeline.
-  void Log(const std::vector<uint64_t>& pipeline, uint64_t time) const;
+  // Logs the compile time |time| for |pipeline| to the log file.
+  // |event_type| is used as the key in the event log file, if enabled.
+  // |pipeline| is any series of integers that represent the pipeline.
+  // We are using the hash of each shader that is part of the pipeline.
+  void Log(const char* event_type, const std::vector<uint64_t>& pipeline,
+           uint64_t time) const;
 
   // Logs an arbitrary string prefixed by the given pipeline.
-  void Log(const std::vector<uint64_t>& pipeline, const std::string& str) const;
+  void Log(const char* event_type, const std::vector<uint64_t>& pipeline,
+           const std::string& str) const;
 
   // Logs the time since the last call to LogTimeDelta.
-  void LogTimeDelta(const char* extra_content = "");
+  void LogTimeDelta(const char* event_type,
+                    const std::string& extra_content = "");
+
+  // Logs an arbitrary |extra_content| to the event log file.
+  // Doesn't write to the layer log file.
+  void LogEventOnly(const char* event_type,
+                    const std::string& extra_content = "") const;
 
   // Returns a string identifier of |pipeline|.
   std::string PipelineHashToString(const std::vector<uint64_t>& pipeline) const;
@@ -239,13 +248,16 @@ class LayerData {
   absl::flat_hash_map<VkPipeline, std::vector<uint64_t>> pipeline_hash_map_
       ABSL_GUARDED_BY(pipeline_hash_lock_);
 
-  mutable absl::Mutex log_lock_;
   // A pointer to the log file to use.
-  FILE* out_ ABSL_GUARDED_BY(log_lock_);
+  FILE* out_;
+  mutable absl::Mutex log_time_lock_;
   // The last time LogTimeDelta was called.
-  absl::Time last_log_time_ ABSL_GUARDED_BY(log_lock_) = absl::InfinitePast();
-};
+  absl::Time last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
+      absl::InfinitePast();
 
+  // Event log file appended to by multiple layers, or nullptr.
+  FILE* event_log_ = nullptr;
+};
 }  // namespace performancelayers
 
 #endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LAYER_DATA_H_

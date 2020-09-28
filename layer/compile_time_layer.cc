@@ -45,6 +45,12 @@ performancelayers::LayerData* GetLayerData() {
   // Don't use new -- make the destructor run when the layer gets unloaded.
   static performancelayers::LayerData layer_data = performancelayers::LayerData(
       getenv(kLogFilenameEnvVar), "Pipeline,Compile Time (ns)");
+  static bool first_call = true;
+  if (first_call) {
+    layer_data.LogEventOnly("compile_time_layer_init");
+    first_call = false;
+  }
+
   return &layer_data;
 }
 
@@ -120,7 +126,7 @@ CompileTimeLayer_CreateComputePipelines(
         layer_data->HashComputePipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
   }
-  layer_data->Log(hashes, duration);
+  layer_data->Log("create_compute_pipeline", hashes, duration);
   return result;
 }
 
@@ -150,7 +156,7 @@ CompileTimeLayer_CreateGraphicsPipelines(
         layer_data->HashGraphicsPipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
   }
-  layer_data->Log(hashes, duration);
+  layer_data->Log("create_graphics_pipeline", hashes, duration);
   return result;
 }
 

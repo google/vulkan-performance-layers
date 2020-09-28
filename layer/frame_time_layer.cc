@@ -21,6 +21,7 @@
 #include <string>
 
 #include "layer_data.h"
+#include "layer_utils.h"
 #include "log_scanner.h"
 
 #undef VK_LAYER_EXPORT
@@ -49,6 +50,10 @@ constexpr char kBenchmarkWatchFileEnvVar[] =
 constexpr char kBenchmarkStartStringEnvVar[] =
     "VK_FRAME_TIME_BENCHMARK_START_STRING";
 
+const char* StrOrEmpty(const char* str_or_null) {
+  return str_or_null ? str_or_null : "";
+}
+
 class FrameTimeLayerData : public performancelayers::LayerData {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
@@ -56,7 +61,8 @@ class FrameTimeLayerData : public performancelayers::LayerData {
                      const char* benchmark_start_string)
       : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
-        benchmark_start_pattern_(benchmark_start_string) {
+        benchmark_start_pattern_(StrOrEmpty(benchmark_start_string)) {
+    LogEventOnly("frame_time_layer_init");
     if (!benchmark_watch_filename || strlen(benchmark_watch_filename) == 0)
       return;
 
@@ -163,6 +169,7 @@ bool FrameTimeLayerData::HasBenchmarkStarted() {
 
 FrameTimeLayerData::~FrameTimeLayerData() {
   CreateFinishIndicatorFile("APPLICATION_EXIT");
+  LogEventOnly("frame_time_layer_exit", "application_exit");
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -173,22 +180,21 @@ VK_LAYER_PROC(VkResult)
 FrameTimeLayer_QueuePresentKHR(VkQueue queue,
                                const VkPresentInfoKHR* present_info) {
   auto* layer_data = GetLayerData();
-  layer_data->LogTimeDelta(layer_data->HasBenchmarkStarted() ? ",1" : ",0");
+  layer_data->LogTimeDelta("frame_present",
+                           layer_data->HasBenchmarkStarted() ? "1" : "0");
 
   uint64_t frames_elapsed = layer_data->IncrementFrameNum();
   uint64_t exit_frame_num = layer_data->GetExitFrameNum();
   // If the layer should make Vulkan application exit after this frame.
   if (frames_elapsed == exit_frame_num) {
-    fprintf(
-        stderr,
-        "Stadia Frame Time Layer: Terminating application after frame %" PRIu64
-        "\n",
-        frames_elapsed);
-    fflush(stderr);
+    LOG(INFO) << "Stadia Frame Time Layer: Terminating application after frame "
+              << frames_elapsed << "\n";
 
     // _Exit will bring down the parent Vulkan application without running any
     // cleanup. Resources will be reclaimed by the operating system.
     CreateFinishIndicatorFile("FRAME_TIME_LAYER_TERMINATED");
+    layer_data->LogEventOnly("frame_time_layer_exit",
+                             absl::StrCat("terminated,frame:", frames_elapsed));
     std::_Exit(99);
   }
 

@@ -40,7 +40,9 @@ class RuntimeLayerData : public LayerData {
   explicit RuntimeLayerData(char* log_filename)
       : LayerData(log_filename,
                   "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
-                  "Shader Invocations") {}
+                  "Shader Invocations") {
+    LogEventOnly("runtime_layer_init");
+  }
 
   // Records the device that owns |cmd_buffer|.
   void SetDevice(void* cmd_buffer, VkDevice device) {
