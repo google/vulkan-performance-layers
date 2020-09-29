@@ -9,7 +9,7 @@ please submit a patch to this file to add yourself.
 0. Jakub Kuderski <kubak@google.com>
    * Concurrency, precision, Vulkan Loader interaction, and logging fixes.
    * CMake build system support, unit tests, CI, open-source release.
-   * Frame time layer log analysis.
+   * Frame time layer log analysis. Event log analysis and timeline view plots.
    * Benchmark start detection.
 0. Brian Watling <bwatling@google.com>
    * Frame time layer.
