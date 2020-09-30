@@ -142,7 +142,7 @@ def main():
         exit(2)
 
     num_datasets = len(args.dataset)
-    fig, axs = plt.subplots(num_datasets, 1, figsize=(12, 8), constrained_layout=True)
+    fig, axs = plt.subplots(num_datasets, 1, figsize=(12, 4 * num_datasets), constrained_layout=True)
     if num_datasets == 1:
         axs = [axs]
     right_axs = [ax.twinx() for ax in axs]
