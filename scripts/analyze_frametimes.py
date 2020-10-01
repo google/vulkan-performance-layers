@@ -29,6 +29,7 @@ class FrameTimeResult(object):
     Represents frametimes from a single frame time layer log.
     '''
     NanosPerSecond = 10**9
+    NonosPerMilli = 10**6
     TargetFPS = 45
     TargetFrameTime = NanosPerSecond / TargetFPS
 
@@ -43,7 +44,13 @@ class FrameTimeResult(object):
         self.state_to_duration_ms = {}
 
     @staticmethod
-    def from_file(log_path, drop_first_seconds=None):
+    def from_file(log_path, gameplay_state=None, gameplay_duration=None, drop_first_seconds=None):
+        """
+        Creates a FrameTimeResult from a file.
+        - if |gameplay_state| is specified, all frame time statistics will include frames only in that state;
+        - if |gameplay_duration| is specified, all frame times after the specified duration (in seconds) will be discarded;
+        - if |drop_first_seconds| is specified, the specified number of initial benchmark seconds will be discarded.
+        """
         full_path = path.realpath(log_path)
         base = path.basename(full_path)
         parent_dir = path.basename(path.dirname(full_path))
@@ -59,11 +66,21 @@ class FrameTimeResult(object):
                 if i == 0:
                     continue
                 assert len(row) == 2
-                result.raw_frametimes.append(int(row[0]))
-                result.frame_states.append(int(row[1]))
-                seen_states.add(int(row[1]))
 
-        if drop_first_seconds is not None and drop_first_seconds > 0:
+                frametime_nanos = int(row[0])
+                frame_state = int(row[1])
+                seen_states.add(frame_state)
+                if frame_state not in result.state_to_duration_ms:
+                    result.state_to_duration_ms[frame_state] = 0
+
+                result.state_to_duration_ms[frame_state] += frametime_nanos / result.NonosPerMilli
+                if gameplay_state is not None and gameplay_state != frame_state:
+                    continue
+
+                result.raw_frametimes.append(frametime_nanos)
+                result.frame_states.append(frame_state)
+
+        if drop_first_seconds is not None:
             drop_first_nanos = drop_first_seconds * result.NanosPerSecond
             curr_duration = 0
             drop_end = 0
@@ -77,18 +94,23 @@ class FrameTimeResult(object):
             result.raw_frametimes = result.raw_frametimes[drop_end:]
             result.frame_states = result.frame_states[drop_end:]
 
-        nanos_per_millis = 10**6
-        result.total_duration_ms = np.sum(result.raw_frametimes) / nanos_per_millis
-        result.average_frametime_ms = np.average(result.raw_frametimes) / nanos_per_millis
-        result.percentile_frametime_ms = [np.percentile(result.raw_frametimes, p) / nanos_per_millis for p in range(100)]
+        if gameplay_duration is not None:
+            target_duration_nanos = gameplay_duration * result.NanosPerSecond
+            curr_duration = 0
+            first_frame_to_discard = 0
+            for frametime in result.raw_frametimes:
+                curr_duration += frametime
+                first_frame_to_discard += 1
+                if curr_duration > target_duration_nanos:
+                    break
 
-        for state in sorted(seen_states):
-            nanos_in_state = 0
-            for ft_ns, frame_state in zip(result.raw_frametimes, result.frame_states):
-                if frame_state == state:
-                    nanos_in_state += ft_ns
+            result.raw_frametimes = result.raw_frametimes[:first_frame_to_discard]
+            result.frame_states = result.frame_states[:first_frame_to_discard]
 
-            result.state_to_duration_ms[state] = nanos_in_state / nanos_per_millis
+        result.total_duration_ms = np.sum(result.raw_frametimes) / result.NonosPerMilli
+        result.average_frametime_ms = np.average(result.raw_frametimes) / result.NonosPerMilli
+        result.percentile_frametime_ms = \
+            [np.percentile(result.raw_frametimes, p) / result.NonosPerMilli for p in range(100)]
 
         return result
 
@@ -206,13 +228,17 @@ def relative_noise(data):
 def main():
     parser = argparse.ArgumentParser(description='Process and analyze series of frame time logs.')
     parser.add_argument('--dataset', type=str, nargs='+', action='append', help='Dataset name followed by a list of log files: dataset_name log_file+')
-    parser.add_argument('-c', '--cutoff', type=int, default=None, help='Number of seconds of the initial data to ignore')
+    parser.add_argument('--duration', type=int, default=None, help='Number of seconds of gameplay data to analyze')
+    parser.add_argument('--drop_front', type=int, default=None, help='Number of seconds of the initial data to ignore')
+    parser.add_argument('--gameplay_state', type=int, default=None, help='The only state number to consider when calculating frame times statistics')
     parser.add_argument('--print_csv', type=bool, default=False, help='Prints stats as comma separated values (CSV)')
     parser.add_argument('-v', '--verbose', type=bool, default=False, help='Output gif file name')
     args = parser.parse_args()
 
     datasets = args.dataset
-    cutoff = args.cutoff
+    gameplay_duration = args.duration
+    drop_front = args.drop_front
+    gameplay_state = args.gameplay_state
     use_csv = args.print_csv
     verbose = args.verbose
 
@@ -221,7 +247,7 @@ def main():
         print(f'~~~~ Processing dataset {dataset_name} ~~~~')
         results = []
         for file in dataset[1:]:
-            results.append(FrameTimeResult.from_file(file, cutoff))
+            results.append(FrameTimeResult.from_file(file, gameplay_state, gameplay_duration, drop_front))
             if verbose:
                 results[-1].dump()
                 print()
