@@ -8,10 +8,8 @@ Sample use:
         --dataset baseline /my/path/baseline/**/frame_times.log \
         --dataset test /my/path/test/**/frame_times.log
 
-In a addition to stats printed to stdout, the above command produces 3 plots:
-1.  baseline_frametimes.png -- all baseline runs on a single plot.
-2.  test_frametimes.png -- all test runs on a single plot.
-3.  combined.png -- a plot with the best and median result from each dataset.
+In a addition to stats printed to stdout, the above command produces CSV files with
+Frames per Second over time.
 """
 
 import argparse
@@ -25,8 +23,6 @@ import tempfile
 from collections import namedtuple as namedtuple
 from enum import Enum as Enum
 
-script_dir = path.dirname(path.realpath(__file__))
-plot_script_path = path.join(script_dir, 'plot_frame_times.sh')
 
 class FrameTimeResult(object):
     '''
@@ -80,15 +76,6 @@ class FrameTimeResult(object):
 
             result.raw_frametimes = result.raw_frametimes[drop_end:]
             result.frame_states = result.frame_states[drop_end:]
-
-            # It's not enough to update the raw data. We also need to create
-            # a temporary file that will be processed by gnuplot (`plot_frame_times.sh`).
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='__'+parent_dir+'.log') as shadow:
-                result.path = shadow.name
-                writer = csv.writer(shadow)
-                writer.writerow(('Frame Time (ns)',))
-                for ft in result.raw_frametimes:
-                    writer.writerow((ft,))
 
         nanos_per_millis = 10**6
         result.total_duration_ms = np.sum(result.raw_frametimes) / nanos_per_millis
@@ -210,33 +197,24 @@ def summarize_frame_times(results, summary_fns):
 
     return summaries
 
-
 def relative_noise(data):
     min_res = data_low(data)
     max_res = data_high(data)
     return (abs(min_res - max_res) / min_res) * 100
 
-def generate_cdf_plot(results, filename):
-    args = [plot_script_path] + [r.path for r in results]
-    subprocess.run(args, env={'OUTFILE': filename})
 
 def main():
     parser = argparse.ArgumentParser(description='Process and analyze series of frame time logs.')
     parser.add_argument('--dataset', type=str, nargs='+', action='append', help='Dataset name followed by a list of log files: dataset_name log_file+')
-    parser.add_argument('-o', '--output', type=str, default='combined.png', help='Output file name')
     parser.add_argument('-c', '--cutoff', type=int, default=None, help='Number of seconds of the initial data to ignore')
     parser.add_argument('--print_csv', type=bool, default=False, help='Prints stats as comma separated values (CSV)')
     parser.add_argument('-v', '--verbose', type=bool, default=False, help='Output gif file name')
     args = parser.parse_args()
 
     datasets = args.dataset
-    output_file = args.output
     cutoff = args.cutoff
     use_csv = args.print_csv
     verbose = args.verbose
-
-    outputs = []
-    selected_results = []
 
     for dataset in datasets:
         dataset_name = dataset[0]
@@ -265,19 +243,10 @@ def main():
         median_res = sorted_results[len(sorted_results) // 2]
         print(f'Median result for {dataset_name}:')
         median_res.dump()
-        outfile = dataset_name + '_frametimes.png'
-        outputs.append((dataset_name, outfile))
+        print('---------------------------------------------------------------------\n')
 
         low_p5_idx = int(len(sorted_results) * 0.05)
         high_p95_idx = int(len(sorted_results) * 0.95)
-
-        selected_results.append((sorted_results[low_p5_idx], median_res))
-        generate_cdf_plot([sorted_results[low_p5_idx], median_res], outfile)
-        print(f'Plot saved as {outfile}')
-        all_res_plot_filename = dataset_name + '_all.png'
-        generate_cdf_plot(sorted_results[low_p5_idx:high_p95_idx], all_res_plot_filename)
-        print(f'All result plot saved as {all_res_plot_filename}')
-        print('---------------------------------------------------------------------\n')
 
         p5_fps_over_time = sorted_results[low_p5_idx].fps_over_time()
         median_fps_over_time = median_res.fps_over_time()
@@ -291,16 +260,6 @@ def main():
                 fps_csv.writerow((i, x[0], x[1], y[0], y[1], z[0], z[1]))
             print('Fps saved as: ' + dataset_name + '_fps.csv')
         print('---------------------------------------------------------------------\n')
-
-    final_plot_results = []
-    for res in selected_results:
-        final_plot_results.append(res[0])
-        if res[0] != res[1]:
-            final_plot_results.append(res[1])
-
-    outfile_no_ext = path.splitext(output_file)[0]
-    final_outfile = outfile_no_ext + '.png'
-    generate_cdf_plot(final_plot_results, final_outfile)
 
 if __name__ == '__main__':
     main()
