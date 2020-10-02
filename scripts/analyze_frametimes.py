@@ -30,6 +30,7 @@ class FrameTimeResult(object):
     '''
     NanosPerSecond = 10**9
     NonosPerMilli = 10**6
+    MillisPerSecond = 10**3
     TargetFPS = 45
     TargetFrameTime = NanosPerSecond / TargetFPS
 
@@ -135,11 +136,11 @@ class FrameTimeResult(object):
 
     def time_in_state(self, state_idx):
         '''
-        Returns the total number of milliseconds spent in |state_idx|.
+        Returns the total number of seconds spent in |state_idx|.
         If no frame time was spent in a given state, returns 0.
         '''
         if state_idx in self.state_to_duration_ms:
-            return self.state_to_duration_ms[state_idx]
+            return self.state_to_duration_ms[state_idx] / self.MillisPerSecond
         return 0
 
     def fps_over_time(self):
@@ -163,7 +164,7 @@ class FrameTimeResult(object):
         print(f'\t\tmedian: {self.median():.3f} ms,\tp90: {self.p90():.3f} ms,\t\t\tp95: {self.p95():.3f} ms')
         print(f'\t\tmissed frames: {self.percent_missed():.3f}%')
         for state, ms in self.state_to_duration_ms.items():
-            print(f'\t\ttime in state {state}: {ms:.3f} ms')
+            print(f'\t\ttime in state {state}: {ms:.3f} s')
 
 
 FrameTimesMetrics = namedtuple('FrameTimesMetrics',
@@ -175,21 +176,10 @@ class SummaryKind(Enum):
     RELATIVE = 2
 
 FrameTimesSummaryFn = namedtuple('FrameTimesSummaryFn', ['name', 'fn', 'kind'])
-FrameTimesSummary = namedtuple('FrameTimesSummary', ['summary_fn', 'metrics'])
 
-def print_frame_times_summary(summary, as_csv=False):
-    if not as_csv:
-        print(f'{summary.summary_fn.name}:')
-
-    for k, v in zip(summary.metrics._fields, summary.metrics):
-        value_str = f'{v:.3f}' if v < 10**6 else f'{v:.2e}'
-        if summary.summary_fn.kind == SummaryKind.RELATIVE:
-            value_str = value_str + '%'
-
-        if not as_csv:
-            print(f'\t\t{k}: {value_str}')
-        else:
-            print(f'{summary.summary_fn.name},{k},{value_str}')
+def format_summarized_value(summary_fn, value):
+    value_str = f'{value:.3f}' if value < 10**6 else f'{value:.2e}'
+    return value_str if summary_fn.kind == SummaryKind.ABSOLUTE else value_str + '%'
 
 def data_low(data):
     return np.percentile(data, 5)
@@ -206,7 +196,7 @@ def summarize_frame_times(results, summary_fns):
     if len(considered_results) == 0:
         considered_results = sorted_results
 
-    summaries = []
+    metric_to_summaries = {}
     for summary_fn in summary_fns:
         avg = summary_fn.fn([x.average_frametime_ms for x in results])
         median = summary_fn.fn([x.median() for x in results])
@@ -214,10 +204,14 @@ def summarize_frame_times(results, summary_fns):
         p95 = summary_fn.fn([x.p95() for x in results])
         missed_percent = summary_fn.fn([x.percent_missed() for x in results])
         init_time = summary_fn.fn([x.time_in_state(0) for x in results])
-        metrics = FrameTimesMetrics(avg, median, p90, p95, missed_percent, init_time)
-        summaries.append(FrameTimesSummary(summary_fn, metrics))
 
-    return summaries
+        metrics = FrameTimesMetrics(avg, median, p90, p95, missed_percent, init_time)
+        for metric_value, metric_name in zip(metrics, metrics._fields):
+            if metric_name not in metric_to_summaries:
+                metric_to_summaries[metric_name] = []
+            metric_to_summaries[metric_name].append((summary_fn, metric_value))
+
+    return metric_to_summaries
 
 def relative_noise(data):
     min_res = data_low(data)
@@ -242,9 +236,11 @@ def main():
     use_csv = args.print_csv
     verbose = args.verbose
 
+    separator = ',' if use_csv else '\t\t'
+
     for dataset in datasets:
         dataset_name = dataset[0]
-        print(f'~~~~ Processing dataset {dataset_name} ~~~~')
+        print(f'~~~~ Processing dataset {dataset_name} ~~~~\n')
         results = []
         for file in dataset[1:]:
             results.append(FrameTimeResult.from_file(file, gameplay_state, gameplay_duration, drop_front))
@@ -252,19 +248,26 @@ def main():
                 results[-1].dump()
                 print()
 
-        print(f'Dataset size: {len(results)}')
-
+        print(f'Dataset: {dataset_name}{separator}size: {len(results)}')
         summary_fns = []
-        summary_fns += [FrameTimesSummaryFn('Low (p5)', data_low, SummaryKind.ABSOLUTE)]
+        summary_fns += [FrameTimesSummaryFn('P5', data_low, SummaryKind.ABSOLUTE)]
         summary_fns += [FrameTimesSummaryFn('Median', np.median, SummaryKind.ABSOLUTE)]
-        summary_fns += [FrameTimesSummaryFn('High (p95)', data_high, SummaryKind.ABSOLUTE)]
-        summary_fns += [FrameTimesSummaryFn('Standard deviation', np.std, SummaryKind.ABSOLUTE)]
+        summary_fns += [FrameTimesSummaryFn('P95', data_high, SummaryKind.ABSOLUTE)]
+        summary_fns += [FrameTimesSummaryFn('Std Dev', np.std, SummaryKind.ABSOLUTE)]
         summary_fns += [FrameTimesSummaryFn('Noise', relative_noise, SummaryKind.RELATIVE)]
 
-        for summary in summarize_frame_times(results, summary_fns):
-            print_frame_times_summary(summary, as_csv=use_csv)
-            print()
+        results_header = 'Metric'
+        for summary_fn in summary_fns:
+            results_header = results_header + separator + summary_fn.name
+        print(results_header)
 
+        for metric, summaries in summarize_frame_times(results, summary_fns).items():
+            summarized_metric_str = metric
+            for summary_fn, metric_value in summaries:
+                summarized_metric_str = summarized_metric_str + separator + format_summarized_value(summary_fn, metric_value)
+            print(summarized_metric_str)
+
+        print()
         sorted_results = sorted(results, key=lambda x: x.median())
         median_res = sorted_results[len(sorted_results) // 2]
         print(f'Median result for {dataset_name}:')
