@@ -13,7 +13,7 @@ We welcome contributions and suggestions for improvements; see [docs/contributin
 ## Analysis Scripts
 
 The project comes with a set of simple log analysis scripts:
-1. [analyze_frametimes.py](scripts/analyze_analyze_frametimes.py) -- processes frame time layer logs. Prints summarized results, outputs frames per second (FPS) as CSV files, and plots frame time distributions.
+1. [analyze_frametimes.py](scripts/analyze_frametimes.py) -- processes frame time layer logs. Prints summarized results, outputs frames per second (FPS) as CSV files, and plots frame time distributions.
 2. [plot_timeline.py](scripts/plot_timeline.py) -- processes event log files. Plots frames per second (FPS) and pipeline creation times. Sample output:
     ![Timeline View](sample_output/timeline.svg)
 
