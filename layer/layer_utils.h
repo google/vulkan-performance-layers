@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,5 @@
 
 #ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
-
-#if defined(STADIA_PERFORMANCE_LAYERS_NO_GLOG)
-#include <iostream>
-#define LOG(KIND) std::cerr << "[" #KIND "]\t"
-#else
-#include "base/logging.h"
-#endif
 
 #endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "layer_utils.h"
+#include "logging.h"
 #include "vulkan/vulkan_core.h"
 
 namespace {
@@ -102,8 +103,8 @@ LayerData::LayerData(char* log_filename, const char* header) {
   if (log_filename) {
     out_ = fopen(log_filename, "w");
     if (out_ == nullptr) {
-      LOG(ERROR) << "Failed to open " << log_filename
-                 << ", output will be to STDERR.\n";
+      SPL_LOG(ERROR) << "Failed to open " << log_filename
+                     << ", output will be to STDERR.";
       out_ = stderr;
     }
   } else {

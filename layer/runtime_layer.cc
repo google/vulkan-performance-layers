@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "runtime_layer_data.h"
-
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <string>
+
+#include "runtime_layer_data.h"
 
 #undef VK_LAYER_EXPORT
 #ifndef _WIN32

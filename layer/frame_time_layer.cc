@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
 #include <string>
 
 #include "layer_data.h"
-#include "layer_utils.h"
 #include "log_scanner.h"
+#include "logging.h"
 
 #undef VK_LAYER_EXPORT
 #ifndef _WIN32
@@ -187,8 +187,9 @@ FrameTimeLayer_QueuePresentKHR(VkQueue queue,
   uint64_t exit_frame_num = layer_data->GetExitFrameNum();
   // If the layer should make Vulkan application exit after this frame.
   if (frames_elapsed == exit_frame_num) {
-    LOG(INFO) << "Stadia Frame Time Layer: Terminating application after frame "
-              << frames_elapsed << "\n";
+    SPL_LOG(INFO)
+        << "Stadia Frame Time Layer: Terminating application after frame "
+        << frames_elapsed;
 
     // _Exit will bring down the parent Vulkan application without running any
     // cleanup. Resources will be reclaimed by the operating system.
