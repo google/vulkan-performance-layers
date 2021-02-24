@@ -31,8 +31,8 @@ ARG GENERATOR
 RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
     && apt-get update \
     && apt-get install -yqq --no-install-recommends \
-      build-essential gcc g++ clang-9 ninja-build cmake binutils-gold \
-      libc++-9-dev libc++abi-9-dev \
+      build-essential gcc g++ clang-11 ninja-build cmake binutils-gold \
+      libc++-11-dev libc++abi-11-dev \
       python python-distutils-extra python3 python3-distutils \
       git vim-tiny \
       libglm-dev libxcb-dri3-0 libxcb-present0 libpciaccess0 \
@@ -40,8 +40,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
       libmirclient-dev libwayland-dev libxrandr-dev libxcb-ewmh-dev \
     && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10 \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-9 10 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-9 10
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-11 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-11 10
 
 COPY . /performance-layers
 
