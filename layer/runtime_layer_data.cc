@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #include <inttypes.h>
 
-#include "layer_utils.h"
+#include "logging.h"
 
 namespace performancelayers {
 
@@ -94,9 +94,9 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
     if (result != VK_SUCCESS && result != VK_NOT_READY) {
       // This query failed for some reason. Remove it from the list so we do
       // not keep checking it.  Write an error to stderr.
-      LOG(ERROR) << "Timestamp query failed for "
-                 << PipelineHashToString(GetPipelineHash(info->pipeline))
-                 << " with error " << result;
+      SPL_LOG(ERROR) << "Timestamp query failed for "
+                     << PipelineHashToString(GetPipelineHash(info->pipeline))
+                     << " with error " << result;
       discard_result = true;
     } else if (result_available &&
                (timestamp0 == kInvalidValue || timestamp1 == kInvalidValue ||
@@ -104,10 +104,10 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
                 (timestamp1 - timestamp0 > kUnreasonablyLongRuntime))) {
       // This query did not produce valid timestamps for some reason. Remove
       // it from the list so we do not keep checking it.
-      LOG(ERROR) << "Timestamp query failed for "
-                 << PipelineHashToString(GetPipelineHash(info->pipeline))
-                 << " producing invalid timestamps: t0=" << timestamp0
-                 << ", t1=" << timestamp1;
+      SPL_LOG(ERROR) << "Timestamp query failed for "
+                     << PipelineHashToString(GetPipelineHash(info->pipeline))
+                     << " producing invalid timestamps: t0=" << timestamp0
+                     << ", t1=" << timestamp1;
       discard_result = true;
     }
 

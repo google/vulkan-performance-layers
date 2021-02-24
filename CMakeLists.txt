@@ -55,6 +55,7 @@ message(STATUS "VulkanLoaderGenerated ${VulkanLoaderGenerated_INCLUDE_DIR}")
 add_library(performance_layers_support_lib INTERFACE)
 target_sources(performance_layers_support_lib INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_data.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/logging.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_scanner.cc
 )
 target_include_directories(performance_layers_support_lib INTERFACE
@@ -70,9 +71,6 @@ target_link_libraries(performance_layers_support_lib INTERFACE
     absl::str_format
     absl::synchronization
     farmhash
-)
-target_compile_definitions(performance_layers_support_lib INTERFACE
-	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
 )
 
 # Layer targets.

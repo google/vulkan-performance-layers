@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include <cassert>
 
 #include "absl/strings/match.h"
-#include "layer_utils.h"
+#include "logging.h"
 
 namespace performancelayers {
 
@@ -26,7 +26,7 @@ std::optional<LogScanner> LogScanner::FromFilename(
     const std::string& filename) {
   std::ifstream file(filename);
   if (!file.good()) {
-    LOG(ERROR) << "Failed to open " << filename << "\n";
+    SPL_LOG(ERROR) << "Failed to open " << filename;
     return std::nullopt;
   }
 
