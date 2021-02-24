@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2020-2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,17 +51,19 @@ else()
 endif()
 message(STATUS "VulkanLoaderGenerated ${VulkanLoaderGenerated_INCLUDE_DIR}")
 
-add_library(VkLayer_stadia_pipeline_compile_time SHARED
-    layer/layer_data.cc
-    layer/compile_time_layer.cc
+# The library with the common code shared by all layers.
+add_library(performance_layers_support_lib INTERFACE)
+target_sources(performance_layers_support_lib INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_data.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_scanner.cc
 )
-target_include_directories(VkLayer_stadia_pipeline_compile_time PRIVATE
-    layer
+target_include_directories(performance_layers_support_lib INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer
     ${VulkanHeaders_INCLUDE_DIR}
     ${VulkanLoaderGenerated_INCLUDE_DIR}
     third_party/farmhash/src
 )
-target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE
+target_link_libraries(performance_layers_support_lib INTERFACE
     absl::flat_hash_map
     absl::flat_hash_set
     absl::strings
@@ -69,55 +71,27 @@ target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE
     absl::synchronization
     farmhash
 )
-target_compile_definitions(VkLayer_stadia_pipeline_compile_time PRIVATE
+target_compile_definitions(performance_layers_support_lib INTERFACE
 	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
 )
 
+# Layer targets.
+
+add_library(VkLayer_stadia_pipeline_compile_time SHARED
+    layer/compile_time_layer.cc
+)
+target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE performance_layers_support_lib)
+
 add_library(VkLayer_stadia_pipeline_runtime SHARED
-    layer/layer_data.cc
     layer/runtime_layer.cc
     layer/runtime_layer_data.cc
 )
-target_include_directories(VkLayer_stadia_pipeline_runtime PRIVATE
-    layer
-    ${VulkanHeaders_INCLUDE_DIR}
-    ${VulkanLoaderGenerated_INCLUDE_DIR}
-    third_party/farmhash/src
-)
-target_link_libraries(VkLayer_stadia_pipeline_runtime PRIVATE
-    absl::flat_hash_map
-    absl::flat_hash_set
-    absl::strings
-    absl::str_format
-    absl::synchronization
-    farmhash
-)
-target_compile_definitions(VkLayer_stadia_pipeline_runtime PRIVATE
-	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
-)
+target_link_libraries(VkLayer_stadia_pipeline_runtime PRIVATE performance_layers_support_lib)
 
 add_library(VkLayer_stadia_frame_time SHARED
-    layer/layer_data.cc
-    layer/log_scanner.cc
     layer/frame_time_layer.cc
 )
-target_include_directories(VkLayer_stadia_frame_time PRIVATE
-    layer
-    ${VulkanHeaders_INCLUDE_DIR}
-    ${VulkanLoaderGenerated_INCLUDE_DIR}
-    third_party/farmhash/src
-)
-target_link_libraries(VkLayer_stadia_frame_time PRIVATE
-    absl::flat_hash_map
-    absl::flat_hash_set
-    absl::strings
-    absl::str_format
-    absl::synchronization
-    farmhash
-)
-target_compile_definitions(VkLayer_stadia_frame_time PRIVATE
-	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
-)
+target_link_libraries(VkLayer_stadia_frame_time PRIVATE performance_layers_support_lib)
 
 install(TARGETS
         VkLayer_stadia_pipeline_compile_time
@@ -129,34 +103,22 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
         DESTINATION ${CMAKE_INSTALL_PREFIX}
         FILES_MATCHING PATTERN "*.json")
 
+# Test targets.
+
 enable_testing()
 add_executable(layer_support_tests
-    layer/layer_data.cc
-    layer/log_scanner.cc
     units/log_scanner_tests.cc
 )
 target_include_directories(layer_support_tests PRIVATE
-    layer
-    ${VulkanHeaders_INCLUDE_DIR}
-    ${VulkanLoaderGenerated_INCLUDE_DIR}
-    third_party/farmhash/src
     third_party/googletest/googletest/include
 )
 target_link_libraries(layer_support_tests PRIVATE
-    absl::flat_hash_map
-    absl::flat_hash_set
-    absl::strings
-    absl::str_format
-    absl::synchronization
-    farmhash
+    performance_layers_support_lib
     gtest
     gtest_main
     ${FILESYSTEM_LIB_NAME}
 )
-target_compile_definitions(layer_support_tests PRIVATE
-	STADIA_PERFORMANCE_LAYERS_NO_GLOG=1
-)
+
 add_test(layer_support_tests layer_support_tests)
 add_custom_target(check COMMAND layer_support_tests)
 add_dependencies(check layer_support_tests)
-
