@@ -55,6 +55,7 @@ message(STATUS "VulkanLoaderGenerated ${VulkanLoaderGenerated_INCLUDE_DIR}")
 add_library(performance_layers_support_lib INTERFACE)
 target_sources(performance_layers_support_lib INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_data.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_utils.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/logging.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_scanner.cc
 )

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020-2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,15 +20,7 @@
 #include <vector>
 
 #include "layer_data.h"
-
-#undef VK_LAYER_EXPORT
-#ifndef _WIN32
-#define VK_LAYER_EXPORT extern "C" __attribute__((visibility("default")))
-#else
-#define VK_LAYER_EXPORT extern "C" _declspec(dllexport)
-#endif
-
-#define VK_LAYER_PROC(ReturnType) VKAPI_ATTR ReturnType VKAPI_CALL
+#include "layer_utils.h"
 
 namespace {
 // ----------------------------------------------------------------------------
@@ -54,15 +46,20 @@ performancelayers::LayerData* GetLayerData() {
   return &layer_data;
 }
 
+// Use this macro to define all vulkan functions intercepted by the layer.
+#define SPL_COMPILE_TIME_LAYER_FUNC(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_)  \
+  SPL_INTERCEPTED_VULKAN_FUNC(RETURN_TYPE_, CompileTimeLayer_, FUNC_NAME_, \
+                              FUNC_ARGS_)
+
 //////////////////////////////////////////////////////////////////////////////
 //  Implementation of the instance functions we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
 // Override for vkDestroyDevice.  Deletes the entry for |instance| from the
 // layer data.
-VK_LAYER_PROC(void)
-CompileTimeLayer_DestroyInstance(VkInstance instance,
-                                 const VkAllocationCallbacks* allocator) {
+SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyInstance,
+                            (VkInstance instance,
+                             const VkAllocationCallbacks* allocator)) {
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
@@ -72,23 +69,20 @@ CompileTimeLayer_DestroyInstance(VkInstance instance,
 
 // Override for vkCreateInstance.  Creates the dispatch table for this instance
 // and add it to the layer data.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
-                                const VkAllocationCallbacks* allocator,
-                                VkInstance* instance) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateInstance,
+                            (const VkInstanceCreateInfo* create_info,
+                             const VkAllocationCallbacks* allocator,
+                             VkInstance* instance)) {
   auto build_dispatch_table =
       [instance](PFN_vkGetInstanceProcAddr get_proc_addr) {
         // Build dispatch table for the instance functions we need to call.
         VkLayerInstanceDispatchTable dispatch_table{};
 
-    // Get the next layer's instance of the instance functions we will override.
-#define ASSIGN_PROC(name) \
-  dispatch_table.name =   \
-      reinterpret_cast<PFN_vk##name>(get_proc_addr(*instance, "vk" #name))
-        ASSIGN_PROC(DestroyInstance);
-        ASSIGN_PROC(EnumeratePhysicalDevices);
-        ASSIGN_PROC(GetInstanceProcAddr);
-#undef ASSIGN_PROC
+        // Get the next layer's instance of the instance functions we will
+        // override.
+        SPL_DISPATCH_INSTANCE_FUNC(DestroyInstance);
+        SPL_DISPATCH_INSTANCE_FUNC(EnumeratePhysicalDevices);
+        SPL_DISPATCH_INSTANCE_FUNC(GetInstanceProcAddr);
         return dispatch_table;
       };
 
@@ -102,11 +96,12 @@ CompileTimeLayer_CreateInstance(const VkInstanceCreateInfo* create_info,
 
 // Override for vkCreateComputePipelines.  Measures the time it takes to compile
 // the pipeline, and logs the result.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_CreateComputePipelines(
-    VkDevice device, VkPipelineCache pipeline_cache, uint32_t create_info_count,
-    const VkComputePipelineCreateInfo* create_infos,
-    const VkAllocationCallbacks* alloc_callbacks, VkPipeline* pipelines) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
+                            (VkDevice device, VkPipelineCache pipeline_cache,
+                             uint32_t create_info_count,
+                             const VkComputePipelineCreateInfo* create_infos,
+                             const VkAllocationCallbacks* alloc_callbacks,
+                             VkPipeline* pipelines)) {
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CreateComputePipelines);
@@ -132,11 +127,12 @@ CompileTimeLayer_CreateComputePipelines(
 
 // Override for vkCreateGraphicsPipelines.  Measures the time it takes to
 // compile the pipeline, and logs the result.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_CreateGraphicsPipelines(
-    VkDevice device, VkPipelineCache pipeline_cache, uint32_t create_info_count,
-    const VkGraphicsPipelineCreateInfo* create_infos,
-    const VkAllocationCallbacks* alloc_callbacks, VkPipeline* pipelines) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
+                            (VkDevice device, VkPipelineCache pipeline_cache,
+                             uint32_t create_info_count,
+                             const VkGraphicsPipelineCreateInfo* create_infos,
+                             const VkAllocationCallbacks* alloc_callbacks,
+                             VkPipeline* pipelines)) {
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CreateGraphicsPipelines);
@@ -162,30 +158,30 @@ CompileTimeLayer_CreateGraphicsPipelines(
 
 // Override for vkCreateShaderModule.  Records the hash of the shader module in
 // the layer data.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_CreateShaderModule(VkDevice device,
-                                    const VkShaderModuleCreateInfo* create_info,
-                                    const VkAllocationCallbacks* allocator,
-                                    VkShaderModule* shader_module) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
+                            (VkDevice device,
+                             const VkShaderModuleCreateInfo* create_info,
+                             const VkAllocationCallbacks* allocator,
+                             VkShaderModule* shader_module)) {
   return GetLayerData()->CreateShaderModule(device, create_info, allocator,
                                             shader_module);
 }
 
 // Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
 // instances. This mapping is used in the vkCreateDevice override.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_EnumeratePhysicalDevices(VkInstance instance,
-                                          uint32_t* pPhysicalDeviceCount,
-                                          VkPhysicalDevice* pPhysicalDevices) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
+                            (VkInstance instance,
+                             uint32_t* pPhysicalDeviceCount,
+                             VkPhysicalDevice* pPhysicalDevices)) {
   return GetLayerData()->EnumeratePhysicalDevices(
       instance, pPhysicalDeviceCount, pPhysicalDevices);
 }
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
-VK_LAYER_PROC(void)
-CompileTimeLayer_DestroyDevice(VkDevice device,
-                               const VkAllocationCallbacks* allocator) {
+SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
+                            (VkDevice device,
+                             const VkAllocationCallbacks* allocator)) {
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
@@ -195,24 +191,20 @@ CompileTimeLayer_DestroyDevice(VkDevice device,
 
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_CreateDevice(VkPhysicalDevice physical_device,
-                              const VkDeviceCreateInfo* create_info,
-                              const VkAllocationCallbacks* allocator,
-                              VkDevice* device) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateDevice,
+                            (VkPhysicalDevice physical_device,
+                             const VkDeviceCreateInfo* create_info,
+                             const VkAllocationCallbacks* allocator,
+                             VkDevice* device)) {
   auto build_dispatch_table = [device](PFN_vkGetDeviceProcAddr gdpa) {
     VkLayerDispatchTable dispatch_table{};
 
     // Get the next layer's instance of the device functions we will override.
-#define ASSIGN_PROC(name) \
-  dispatch_table.name =   \
-      reinterpret_cast<PFN_vk##name>(gdpa(*device, "vk" #name))
-    ASSIGN_PROC(GetDeviceProcAddr);
-    ASSIGN_PROC(DestroyDevice);
-    ASSIGN_PROC(CreateComputePipelines);
-    ASSIGN_PROC(CreateGraphicsPipelines);
-    ASSIGN_PROC(CreateShaderModule);
-#undef ASSIGN_PROC
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
+    SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
+    SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
+    SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
     return dispatch_table;
   };
 
@@ -220,9 +212,9 @@ CompileTimeLayer_CreateDevice(VkPhysicalDevice physical_device,
                                       device, build_dispatch_table);
 }
 
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_EnumerateInstanceLayerProperties(
-    uint32_t* property_count, VkLayerProperties* properties) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, EnumerateInstanceLayerProperties,
+                            (uint32_t * property_count,
+                             VkLayerProperties* properties)) {
   if (property_count) *property_count = 1;
 
   if (properties) {
@@ -236,10 +228,10 @@ CompileTimeLayer_EnumerateInstanceLayerProperties(
   return VK_SUCCESS;
 }
 
-VK_LAYER_PROC(VkResult)
-CompileTimeLayer_EnumerateDeviceLayerProperties(
-    VkPhysicalDevice /* physical_device */, uint32_t* property_count,
-    VkLayerProperties* properties) {
+SPL_COMPILE_TIME_LAYER_FUNC(VkResult, EnumerateDeviceLayerProperties,
+                            (VkPhysicalDevice /* physical_device */,
+                             uint32_t* property_count,
+                             VkLayerProperties* properties)) {
   return CompileTimeLayer_EnumerateInstanceLayerProperties(property_count,
                                                            properties);
 }
@@ -252,55 +244,38 @@ CompileTimeLayer_EnumerateDeviceLayerProperties(
 // Otherwise we call the *GetProcAddr function for the next layer to get the
 // function to be called.
 
-VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
-    CompileTimeLayer_GetDeviceProcAddr(VkDevice device, const char* name) {
-  // Device functions we intercept.
-
-#define CHECK_FUNC(func_name)                    \
-  if (!strcmp(name, "vk" #func_name)) {          \
-    return reinterpret_cast<PFN_vkVoidFunction>( \
-        &CompileTimeLayer_##func_name);          \
+SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
+                                                  GetDeviceProcAddr,
+                                                  (VkDevice device,
+                                                   const char* name)) {
+  if (auto func =
+          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+    return func;
   }
-  CHECK_FUNC(CreateComputePipelines);
-  CHECK_FUNC(CreateGraphicsPipelines);
-  CHECK_FUNC(CreateShaderModule);
-  CHECK_FUNC(DestroyDevice);
-  CHECK_FUNC(EnumerateDeviceLayerProperties);
-  CHECK_FUNC(GetDeviceProcAddr);
-#undef CHECK_FUNC
 
   performancelayers::LayerData* layer_data = GetLayerData();
 
-  PFN_vkGetDeviceProcAddr next_get_proc_addr;
-  next_get_proc_addr = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceProcAddr);
+  PFN_vkGetDeviceProcAddr next_get_proc_addr =
+      layer_data->GetNextDeviceProcAddr(
+          device, &VkLayerDispatchTable::GetDeviceProcAddr);
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(device, name);
 }
 
-VK_LAYER_EXPORT VK_LAYER_PROC(PFN_vkVoidFunction)
-    CompileTimeLayer_GetInstanceProcAddr(VkInstance instance,
-                                         const char* name) {
-#define CHECK_FUNC(func_name)                    \
-  if (!strcmp(name, "vk" #func_name)) {          \
-    return reinterpret_cast<PFN_vkVoidFunction>( \
-        &CompileTimeLayer_##func_name);          \
+SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
+                                                  GetInstanceProcAddr,
+                                                  (VkInstance instance,
+                                                   const char* name)) {
+  if (auto func =
+          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+    return func;
   }
-  CHECK_FUNC(CreateDevice);
-  CHECK_FUNC(CreateInstance);
-  CHECK_FUNC(DestroyInstance);
-  CHECK_FUNC(EnumerateDeviceLayerProperties);
-  CHECK_FUNC(EnumerateInstanceLayerProperties);
-  CHECK_FUNC(EnumeratePhysicalDevices);
-  CHECK_FUNC(GetDeviceProcAddr);
-  CHECK_FUNC(GetInstanceProcAddr);
-#undef CHECK_FUNC
 
   performancelayers::LayerData* layer_data = GetLayerData();
 
-  PFN_vkGetInstanceProcAddr next_get_proc_addr;
-  next_get_proc_addr = layer_data->GetNextInstanceProcAddr(
-      instance, &VkLayerInstanceDispatchTable::GetInstanceProcAddr);
+  PFN_vkGetInstanceProcAddr next_get_proc_addr =
+      layer_data->GetNextInstanceProcAddr(
+          instance, &VkLayerInstanceDispatchTable::GetInstanceProcAddr);
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
