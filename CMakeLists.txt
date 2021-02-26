@@ -95,10 +95,16 @@ add_library(VkLayer_stadia_frame_time SHARED
 )
 target_link_libraries(VkLayer_stadia_frame_time PRIVATE performance_layers_support_lib)
 
+add_library(VkLayer_stadia_pipeline_cache_sideload SHARED
+    layer/cache_sideload_layer.cc
+)
+target_link_libraries(VkLayer_stadia_pipeline_cache_sideload PRIVATE performance_layers_support_lib)
+
 install(TARGETS
         VkLayer_stadia_pipeline_compile_time
         VkLayer_stadia_pipeline_runtime
         VkLayer_stadia_frame_time
+        VkLayer_stadia_pipeline_cache_sideload
         DESTINATION lib)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer

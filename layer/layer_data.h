@@ -19,9 +19,11 @@
 #include <cstdio>
 #include <functional>
 #include <set>
+#include <tuple>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "farmhash.h"
 #include "vulkan/vk_layer.h"
@@ -32,6 +34,12 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
+
+// Joins all |args| with the ',' CSV separator.
+template <typename... Args>
+std::string CsvCat(Args&&... args) {
+  return absl::StrJoin(std::forward_as_tuple(std::forward<Args>(args)...), ",");
+}
 
 // A class that contains all of the data that is needed for the functions
 // that this layer will override.

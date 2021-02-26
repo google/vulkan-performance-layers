@@ -14,15 +14,12 @@
 
 #include "layer_data.h"
 
-#include <inttypes.h>
-
+#include <cinttypes>
 #include <cstdint>
-#include <tuple>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "layer_utils.h"
 #include "logging.h"
@@ -39,12 +36,6 @@ void WriteLnAndFlush(FILE* file, const std::string& content) {
   fflush(file);
 }
 
-// Joins all |args| with the ',' CSV separator.
-template <typename... Args>
-std::string CsvCat(Args&&... args) {
-  return absl::StrJoin(std::forward_as_tuple(std::forward<Args>(args)...), ",");
-}
-
 // Returns a quoted string.
 template <typename StrTy>
 std::string QuoteStr(StrTy&& str) {
@@ -55,7 +46,7 @@ std::string QuoteStr(StrTy&& str) {
 // |timestamp|.
 std::string MakeEventLogPrefix(const char* event_type,
                                absl::Time timestamp = absl::Now()) {
-  return CsvCat(event_type, absl::ToUnixNanos(timestamp));
+  return performancelayers::CsvCat(event_type, absl::ToUnixNanos(timestamp));
 }
 
 // Returns the first create info of type

@@ -1,9 +1,10 @@
 # Vulkan Performance Layers
 
-This project contains three Vulkan layers:
+This project contains 4 Vulkan layers:
 1. Compile time layer for measuring pipeline compilation times. The output log file location can be set with the `VK_COMPILE_TIME_LOG` environment variable.
 2. Runtime layer for measuring pipeline execution times. The output log file location can be set with the `VK_RUNTIME_LOG` environment variable.
 3. Frame time layer for measuring time between calls to vkQueuePresentKHR, in nanoseconds. This layer can also terminate the parent Vulkan application after a given number of frames, controlled by the `VK_FRAME_TIME_EXIT_AFTER_FRAME` environment variable. The output log file location can be set with the `VK_FRAME_TIME_LOG` environment variable. Benchmark start detection is controlled by the `VK_FRAME_TIME_BENCHMARK_WATCH_FILE` (which file to incrementally scan) and `VK_FRAME_TIME_BENCHMARK_START_STRING` (string that denotes benchmark start) environment variables.
+4. Pipeline cache sideloading layer for supplying pipeline caches to applications that either do not use pipeline caches, or do not initialize them with the intended initial data. The pipeline cache file to load can be specified by setting the `VK_PIPELINE_CACHE_SIDELOAD_FILE` environment variable. The layer creates an implicit pipeline cache object for each device, initialized with the specified file contents, which then gets merged into application pipeline caches (if any), and makes sure that a valid pipeline cache handle is passed to every pipeline creation. This layer does not produce `.csv` log files.
 
 The results are saved as CSV files. Setting the `VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE` environment variable makes all layers append their events (with timestamps) to a single file.
 
