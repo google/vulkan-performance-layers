@@ -11,5 +11,9 @@ please submit a patch to this file to add yourself.
    * CMake build system support, unit tests, CI, open-source release.
    * Frame time layer log analysis. Event log analysis and timeline view plots.
    * Benchmark start detection.
+   * Logging.
+   * Automatic intercepted layer function registration.
+   * Input buffers.
+   * Pipeline cache sideload layer.
 0. Brian Watling <bwatling@google.com>
    * Frame time layer.

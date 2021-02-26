@@ -1,0 +1,22 @@
+
+{
+  "file_format_version" : "1.0.0",
+  "layer" : {
+    "name": "VK_LAYER_STADIA_pipeline_cache_sideload",
+    "type": "GLOBAL",
+    "library_path": "libVkLayer_stadia_pipeline_cache_sideload.so",
+    "api_version": "1.1.74",
+    "implementation_version": "1",
+    "description": "Sideloads Vulkan Pipeline Cache files.",
+    "functions": {
+      "vkGetInstanceProcAddr": "CacheSideloadLayer_GetInstanceProcAddr",
+      "vkGetDeviceProcAddr": "CacheSideloadLayer_GetDeviceProcAddr"
+    },
+    "enable_environment": {
+      "ENABLE_PIPELINE_CACHE_SIDELOAD_LAYER": "1"
+    },
+    "disable_environment": {
+      "DISABLE_PIPELINE_CACHE_SIDELOAD_LAYER": "1"
+    }
+  }
+}
