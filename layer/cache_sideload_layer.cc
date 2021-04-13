@@ -39,6 +39,8 @@ class CacheSideloadLayerData : public LayerData {
       VkDevice device, const VkAllocationCallbacks* alloc_callbacks,
       absl::Span<const uint8_t> initial_data);
 
+  std::optional<size_t> QueryPipelineCacheSize(VkDevice, VkPipelineCache cache);
+
   std::optional<InputBuffer> ReadImplicitCacheFile();
 
  private:
@@ -67,14 +69,16 @@ VkPipelineCache CacheSideloadLayerData::CreateImplicitDeviceCache(
   assert(device_to_implicit_cache_handle_.count(device) == 0 &&
          "Implicit cache already created for this device.");
 
+  const size_t initial_data_size = initial_data.size();
   VkPipelineCacheCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-  create_info.initialDataSize = initial_data.size();
+  create_info.initialDataSize = initial_data_size;
   create_info.pInitialData = initial_data.data();
 
   const std::string path_info =
       absl::StrCat("path: ", implicit_pipeline_cache_path_);
-  const std::string size_info = absl::StrCat("size: ", initial_data.size());
+  const std::string initial_size_info =
+      absl::StrCat("initial_data_size: ", initial_data_size);
 
   auto create_proc =
       GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreatePipelineCache);
@@ -83,17 +87,58 @@ VkPipelineCache CacheSideloadLayerData::CreateImplicitDeviceCache(
       create_proc(device, &create_info, alloc_callbacks, &new_cache);
   if (result != VK_SUCCESS) {
     SPL_LOG(ERROR) << "Failed to create implicit pipeline cache (" << path_info
-                   << ", " << size_info << ")";
+                   << ", " << initial_size_info << ")";
     return nullptr;
   }
 
   // Insert only valid pipeline cache handles.
   device_to_implicit_cache_handle_[device] = new_cache;
+  SPL_LOG(INFO) << "Created implicit pipeline cache (" << path_info << ", "
+                << initial_size_info << ")";
 
-  SPL_LOG(INFO) << "Create implicit pipeline cache (" << path_info << ", "
-                << size_info << ")";
-  LogEventOnly("create_implicit_pipeline_cache", CsvCat(path_info, size_info));
+  // Check if the pipeline cache size, as reported by the ICD, is close enough
+  // to the initial data size. If the reported size is unexpectedly small, warn
+  // that the initial data might have been not used by the driver.
+  const auto cache_size_or_none = QueryPipelineCacheSize(device, new_cache);
+  if (cache_size_or_none) {
+    SPL_LOG(INFO) << "Cache size reported by the ICD: " << *cache_size_or_none
+                  << " B";
+    // If the reported size is less than 10% of the initial size, issue a
+    // warning.
+    if (*cache_size_or_none * 10 < initial_data_size) {
+      SPL_LOG(WARNING) << "Cache might not have been accepted by the ICD. "
+                          "Initial pipeline data size is "
+                       << initial_data_size
+                       << " B, but the created cache is only "
+                       << *cache_size_or_none << " B large.";
+    }
+  }
+
+  const std::string cache_size_info =
+      absl::StrCat("cache_size: ", cache_size_or_none.value_or(0));
+  LogEventOnly("create_implicit_pipeline_cache",
+               CsvCat(path_info, initial_size_info, cache_size_info));
+
   return new_cache;
+}
+
+std::optional<size_t> CacheSideloadLayerData::QueryPipelineCacheSize(
+    VkDevice device, VkPipelineCache cache) {
+  assert(device);
+  assert(cache);
+  const auto get_pipeline_cache_data_proc = GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::GetPipelineCacheData);
+
+  // Query pipeline cache data size. Because we do not use the API to write out
+  // the data blog, this will be an upper bound.
+  size_t cache_size_upper_bound = 0;
+  const VkResult result = get_pipeline_cache_data_proc(
+      device, cache, &cache_size_upper_bound, nullptr);
+  if (result != VK_SUCCESS) {
+    SPL_LOG(ERROR) << "Failed to query pipeline cache size";
+    return std::nullopt;
+  }
+  return cache_size_upper_bound;
 }
 
 std::optional<InputBuffer> CacheSideloadLayerData::ReadImplicitCacheFile() {
@@ -194,7 +239,7 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(VkResult, CreateComputePipelines,
                                const VkAllocationCallbacks* alloc_callbacks,
                                VkPipeline* pipelines)) {
   assert(create_info_count > 0 &&
-         "Spececification says create_info_count must be > 0.");
+         "Specification says create_info_count must be > 0.");
   performancelayers::CacheSideloadLayerData* layer_data = GetLayerData();
 
   auto actual_cache = pipeline_cache
@@ -216,7 +261,7 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
                                const VkAllocationCallbacks* alloc_callbacks,
                                VkPipeline* pipelines)) {
   assert(create_info_count > 0 &&
-         "Spececification says create_info_count must be > 0.");
+         "Specification says create_info_count must be > 0.");
   performancelayers::CacheSideloadLayerData* layer_data = GetLayerData();
 
   auto actual_cache = pipeline_cache
