@@ -344,7 +344,14 @@ class LayerData {
       VkDevice device, const VkShaderModuleCreateInfo* create_info,
       const VkAllocationCallbacks* allocator, VkShaderModule* shader_module);
 
+  void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize size);
+  void RecordFreeMemory(VkDevice device, VkDeviceMemory memory);
+  void RecordDestroyDeviceMemory(VkDevice device);
+
  private:
+  void RecordFreeMemoryLocked(VkDevice device, VkDeviceMemory memory)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(memory_lock_);
+
   mutable absl::Mutex instance_dispatch_lock_;
   // A map from a VkInstance to its VkLayerInstanceDispatchTable.
   InstanceDispatchMap instance_dispatch_map_
@@ -369,6 +376,16 @@ class LayerData {
   // The map from a pipeline to the result of its hash.
   absl::flat_hash_map<VkPipeline, std::vector<uint64_t>> pipeline_hash_map_
       ABSL_GUARDED_BY(pipeline_hash_lock_);
+
+  mutable absl::Mutex memory_lock_;
+  // The map from device, memory tuple to its allocation size. TODO: Should be a
+  // two-level map, so that per-device data can be purged easily on
+  // DestroyDevice.
+  absl::flat_hash_map<std::pair<VkDevice, VkDeviceMemory>, VkDeviceSize> memory_hash_map_
+      ABSL_GUARDED_BY(memory_hash_lock_);
+
+  VkDeviceSize current_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
+  VkDeviceSize peak_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
 
   // A pointer to the log file to use.
   FILE* out_;

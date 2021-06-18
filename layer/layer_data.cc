@@ -14,6 +14,7 @@
 
 #include "layer_data.h"
 
+#include <tuple>
 #include <cinttypes>
 #include <cstdint>
 
@@ -266,4 +267,39 @@ VkResult LayerData::CreateShaderModule(
   HashShader(*shader_module, create_info->pCode, create_info->codeSize);
   return result;
 }
+
+void LayerData::RecordAllocateMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize size) {
+  absl::MutexLock lock(&memory_lock_);
+  bool inserted;
+  std::tie(std::ignore, inserted) = memory_hash_map_.try_emplace({device, memory}, size);
+  assert(inserted);
+  current_allocation_size_ += size;
+  peak_allocation_size_ = std::max(peak_allocation_size_, current_allocation_size_);
+}
+
+void LayerData::RecordFreeMemory(VkDevice device, VkDeviceMemory memory) {
+  absl::MutexLock lock(&memory_lock_);
+  auto it = memory_hash_map_.find({device, memory});
+  assert (it != memory_hash_map_.end());
+  VkDeviceSize size = it->second;
+  memory_hash_map_.erase(it);
+
+  assert (size <= current_allocation_size_);
+  current_allocation_size_ -= size;
+}
+
+void LayerData::RecordDestroyDeviceMemory(VkDevice device) {
+  absl::MutexLock lock(&memory_lock_);
+  VkDeviceSize size = 0;
+  for (auto it = memory_hash_map_.begin(); it != memory_hash_map_.end(); ++it) {
+    if (it->first.first == device) {
+      size += it->second;
+      // Note that absl::flat_hash_map does not invalidate iterators on erase.
+      memory_hash_map_.erase(it);
+    }
+  }
+  assert (size <= current_allocation_size_);
+  current_allocation_size_ -= size;
+}
+
 }  // namespace performancelayers

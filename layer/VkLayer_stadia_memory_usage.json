@@ -1,0 +1,22 @@
+
+{
+  "file_format_version" : "1.0.0",
+  "layer" : {
+    "name": "VK_LAYER_STADIA_memory_usage",
+    "type": "GLOBAL",
+    "library_path": "libVkLayer_stadia_memory_usage.so",
+    "api_version": "1.1.74",
+    "implementation_version": "1",
+    "description": "Measures the memory usage of a vulken aplication.",
+    "functions": {
+      "vkGetInstanceProcAddr": "RuntimeLayer_GetInstanceProcAddr",
+      "vkGetDeviceProcAddr": "RuntimeLayer_GetDeviceProcAddr"
+    },
+    "enable_environment": {
+      "ENABLE_MEMORY_USAGE_PERFORMANCE_LAYER": "1"
+    },
+    "disable_environment": {
+      "DISABLE_MEMORY_USAGE_PERFORMANCE_LAYER": "1"
+    }
+  }
+}
