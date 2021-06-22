@@ -16,11 +16,12 @@ set -e
 JSON="${1?}"
 LOGVAR="${2?}"
 OUTPUT="${3?}"
-ENABLE=$(grep ENABLE "${JSON?}" | sed -e 's/"//g' -e 's/ //g' -e 's/:.*//')
-cp "${JSON?}" ~/.local/share/vulkan/implicit_layer.d
-printf -v "${ENABLE?}" "1"
-printf -v "${LOGVAR?}" "${OUTPUT?}"
-export "${ENABLE?}"
-export "${LOGVAR?}"
+ENABLE=$(jq -r '.layer.enable_environment | keys[0]' "${JSON?}")
+NAME=$(jq -r .layer.name "${JSON?}")
+
+export "${ENABLE?}"=1
+export "${LOGVAR?}"="${OUTPUT?}"
+export VK_LAYER_PATH=$(dirname ${JSON?})
+export VK_INSTANCE_LAYERS=${NAME?}
 
 vkcube --c 10
