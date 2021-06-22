@@ -228,7 +228,7 @@ SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue2,
   }
 }
 
-// Override for vkDestroyDevice.  Deletes the entry for |instance| from the
+// Override for vkDestroyInstance.  Deletes the entry for |instance| from the
 // layer data.
 SPL_FRAME_TIME_LAYER_FUNC(void, DestroyInstance,
                           (VkInstance instance,
