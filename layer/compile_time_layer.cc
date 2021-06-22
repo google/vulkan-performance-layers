@@ -55,7 +55,7 @@ performancelayers::LayerData* GetLayerData() {
 //  Implementation of the instance functions we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
-// Override for vkDestroyDevice.  Deletes the entry for |instance| from the
+// Override for vkDestroyInstance.  Deletes the entry for |instance| from the
 // layer data.
 SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyInstance,
                             (VkInstance instance,
