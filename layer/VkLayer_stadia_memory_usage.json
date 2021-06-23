@@ -9,8 +9,8 @@
     "implementation_version": "1",
     "description": "Measures the memory usage of a vulken aplication.",
     "functions": {
-      "vkGetInstanceProcAddr": "RuntimeLayer_GetInstanceProcAddr",
-      "vkGetDeviceProcAddr": "RuntimeLayer_GetDeviceProcAddr"
+      "vkGetInstanceProcAddr": "MemoryUsageLayer_GetInstanceProcAddr",
+      "vkGetDeviceProcAddr": "MemoryUsageLayer_GetDeviceProcAddr"
     },
     "enable_environment": {
       "ENABLE_MEMORY_USAGE_PERFORMANCE_LAYER": "1"

@@ -14,25 +14,77 @@
 
 #include "layer_data.h"
 #include "layer_utils.h"
+#include "logging.h"
 
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
 // ----------------------------------------------------------------------------
 
-constexpr uint32_t kCompileTimeLayerVersion = 1;
+constexpr uint32_t kMemoryUsageLayerVersion = 1;
 constexpr char kLayerName[] = "VK_LAYER_STADIA_memory_usage";
 constexpr char kLayerDescription[] =
     "Stadia Memory Usage Measuring Layer";
-constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG_LOG";
+constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 
-performancelayers::LayerData* GetLayerData() {
+class MemoryUsageLayerData : public performancelayers::LayerData {
+ public:
+  explicit MemoryUsageLayerData(char* log_filename)
+      : LayerData(log_filename, "Current (bytes), peak (bytes)") {}
+  void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize size) {
+    absl::MutexLock lock(&memory_lock_);
+    bool inserted;
+    std::tie(std::ignore, inserted) = memory_hash_map_.try_emplace({device, memory}, size);
+    assert(inserted);
+    current_allocation_size_ += size;
+    peak_allocation_size_ = std::max(peak_allocation_size_, current_allocation_size_);
+    LogLine("allocate_memory", performancelayers::CsvCat(current_allocation_size_,
+                                                         peak_allocation_size_));
+  }
+
+  void RecordFreeMemory(VkDevice device, VkDeviceMemory memory) {
+    absl::MutexLock lock(&memory_lock_);
+    auto it = memory_hash_map_.find({device, memory});
+    assert (it != memory_hash_map_.end());
+    VkDeviceSize size = it->second;
+    memory_hash_map_.erase(it);
+
+    assert (size <= current_allocation_size_);
+    current_allocation_size_ -= size;
+  }
+
+  void RecordDestroyDeviceMemory(VkDevice device) {
+    absl::MutexLock lock(&memory_lock_);
+    VkDeviceSize size = 0;
+    for (auto it = memory_hash_map_.begin(); it != memory_hash_map_.end(); ++it) {
+      if (it->first.first == device) {
+        size += it->second;
+        // Note that absl::flat_hash_map does not invalidate iterators on erase.
+        memory_hash_map_.erase(it);
+      }
+    }
+    assert (size <= current_allocation_size_);
+    current_allocation_size_ -= size;
+  }
+
+ private:
+  mutable absl::Mutex memory_lock_;
+  // The map from device, memory tuple to its allocation size. TODO: Should be a
+  // two-level map, so that per-device data can be purged easily on
+  // DestroyDevice.
+  absl::flat_hash_map<std::pair<VkDevice, VkDeviceMemory>, VkDeviceSize> memory_hash_map_
+      ABSL_GUARDED_BY(memory_hash_lock_);
+
+  VkDeviceSize current_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
+  VkDeviceSize peak_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
+};
+
+MemoryUsageLayerData* GetLayerData() {
   // Don't use new -- make the destructor run when the layer gets unloaded.
-  static performancelayers::LayerData layer_data = performancelayers::LayerData(
-      getenv(kLogFilenameEnvVar), "Memory usage format TBD");
+  static MemoryUsageLayerData layer_data(getenv(kLogFilenameEnvVar));
   static bool first_call = true;
   if (first_call) {
-    layer_data.LogEventOnly("compile_time_layer_init");
+    layer_data.LogEventOnly("memory_usage_layer_init");
     first_call = false;
   }
 
@@ -40,8 +92,8 @@ performancelayers::LayerData* GetLayerData() {
 }
 
 // Use this macro to define all vulkan functions intercepted by the layer.
-#define SPL_COMPILE_TIME_LAYER_FUNC(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_)  \
-  SPL_INTERCEPTED_VULKAN_FUNC(RETURN_TYPE_, CompileTimeLayer_, FUNC_NAME_, \
+#define SPL_MEMORY_USAGE_LAYER_FUNC(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_)  \
+  SPL_INTERCEPTED_VULKAN_FUNC(RETURN_TYPE_, MemoryUsageLayer_, FUNC_NAME_, \
                               FUNC_ARGS_)
 
 //////////////////////////////////////////////////////////////////////////////
@@ -50,7 +102,7 @@ performancelayers::LayerData* GetLayerData() {
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the
 // layer data.
-SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyInstance,
+SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyInstance,
                             (VkInstance instance,
                              const VkAllocationCallbacks* allocator)) {
   performancelayers::LayerData* layer_data = GetLayerData();
@@ -62,7 +114,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyInstance,
 
 // Override for vkCreateInstance.  Creates the dispatch table for this instance
 // and add it to the layer data.
-SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateInstance,
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateInstance,
                             (const VkInstanceCreateInfo* create_info,
                              const VkAllocationCallbacks* allocator,
                              VkInstance* instance)) {
@@ -87,12 +139,22 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateInstance,
 //  Implementation of the device function we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
+// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
+// instances. This mapping is used in the vkCreateDevice override.
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
+                            (VkInstance instance,
+                             uint32_t* pPhysicalDeviceCount,
+                             VkPhysicalDevice* pPhysicalDevices)) {
+  return GetLayerData()->EnumeratePhysicalDevices(
+      instance, pPhysicalDeviceCount, pPhysicalDevices);
+}
+
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
-SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
+SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
                             (VkDevice device,
                              const VkAllocationCallbacks* allocator)) {
-  performancelayers::LayerData* layer_data = GetLayerData();
+  MemoryUsageLayerData* layer_data = GetLayerData();
   // Remove memory allocation records for the device being destroyed.
   layer_data->RecordDestroyDeviceMemory(device);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
@@ -103,7 +165,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
 
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
-SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateDevice,
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
                             (VkPhysicalDevice physical_device,
                              const VkDeviceCreateInfo* create_info,
                              const VkAllocationCallbacks* allocator,
@@ -118,18 +180,17 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(FreeMemory);
     return dispatch_table;
   };
-
   return GetLayerData()->CreateDevice(physical_device, create_info, allocator,
                                       device, build_dispatch_table);
 }
 
 // Override for vkAllocateMemory.  Records the allocation size.
-SPL_COMPILE_TIME_LAYER_FUNC(VkResult, AllocateMemory,
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, AllocateMemory,
                             (VkDevice device,
                              const VkMemoryAllocateInfo* pAllocateInfo,
                              const VkAllocationCallbacks* pAllocator,
                              VkDeviceMemory* pMemory)) {
-  performancelayers::LayerData* layer_data = GetLayerData();
+  MemoryUsageLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::AllocateMemory);
 
@@ -143,11 +204,11 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, AllocateMemory,
 }
 
 // Override for vkFreeMemory. Deletes the records.
-SPL_COMPILE_TIME_LAYER_FUNC(void, FreeMemory,
+SPL_MEMORY_USAGE_LAYER_FUNC(void, FreeMemory,
                             (VkDevice device,
                              VkDeviceMemory memory,
                              const VkAllocationCallbacks* pAllocator)) {
-  performancelayers::LayerData* layer_data = GetLayerData();
+  MemoryUsageLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::FreeMemory);
 
@@ -164,7 +225,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, FreeMemory,
 // Otherwise we call the *GetProcAddr function for the next layer to get the
 // function to be called.
 
-SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
+SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetDeviceProcAddr,
                                                   (VkDevice device,
                                                    const char* name)) {
@@ -173,7 +234,7 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
     return func;
   }
 
-  performancelayers::LayerData* layer_data = GetLayerData();
+  MemoryUsageLayerData* layer_data = GetLayerData();
 
   PFN_vkGetDeviceProcAddr next_get_proc_addr =
       layer_data->GetNextDeviceProcAddr(
@@ -182,7 +243,7 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
   return next_get_proc_addr(device, name);
 }
 
-SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
+SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetInstanceProcAddr,
                                                   (VkInstance instance,
                                                    const char* name)) {
@@ -191,7 +252,7 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
     return func;
   }
 
-  performancelayers::LayerData* layer_data = GetLayerData();
+  MemoryUsageLayerData* layer_data = GetLayerData();
 
   PFN_vkGetInstanceProcAddr next_get_proc_addr =
       layer_data->GetNextInstanceProcAddr(
