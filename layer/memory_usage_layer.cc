@@ -264,15 +264,15 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, AllocateMemory,
 
   if (result == VK_SUCCESS) {
     // TODO: Also records failed allocations in some way?
-    layer_data->RecordAllocateMemory(device, *pMemory, pAllocateInfo->allocationSize);
+    layer_data->RecordAllocateMemory(device, *pMemory,
+                                     pAllocateInfo->allocationSize);
   }
   return result;
 }
 
 // Override for vkFreeMemory. Deletes the records.
 SPL_MEMORY_USAGE_LAYER_FUNC(void, FreeMemory,
-                            (VkDevice device,
-                             VkDeviceMemory memory,
+                            (VkDevice device, VkDeviceMemory memory,
                              const VkAllocationCallbacks* pAllocator)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
