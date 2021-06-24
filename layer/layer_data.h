@@ -25,6 +25,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/clock.h"
 #include "farmhash.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
@@ -179,6 +180,10 @@ class LayerData {
     assert(pipeline_hash_map_.count(pipeline) != 0);
     return pipeline_hash_map_.at(pipeline);
   }
+
+  // Logs one line to the log file, and to the event log file, if enabled.
+  void LogLine(const char* event_type, const std::string& line,
+               absl::Time timestamp = absl::Now()) const;
 
   // Logs the compile time |time| for |pipeline| to the log file.
   // |event_type| is used as the key in the event log file, if enabled.
