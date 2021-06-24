@@ -129,16 +129,21 @@ void LayerData::RemoveInstance(VkInstance instance) {
   }
 }
 
+void LayerData::LogLine(const char* event_type, const std::string& line,
+                        absl::Time timestamp) const {
+  WriteLnAndFlush(out_, line);
+  if (event_log_)
+    WriteLnAndFlush(event_log_,
+                    CsvCat(MakeEventLogPrefix(event_type, timestamp), line));
+}
+
 void LayerData::Log(const char* event_type,
                     const std::vector<uint64_t>& pipeline,
                     uint64_t time) const {
   // Quote the comma-separated hash value array to always create 2 CSV cells.
   std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
   std::string pipeline_and_time = CsvCat(pipeline_hash, time);
-  WriteLnAndFlush(out_, pipeline_and_time);
-  if (event_log_)
-    WriteLnAndFlush(event_log_,
-                    CsvCat(MakeEventLogPrefix(event_type), pipeline_and_time));
+  LogLine(event_type, pipeline_and_time);
 }
 
 void LayerData::Log(const char* event_type,
@@ -147,25 +152,18 @@ void LayerData::Log(const char* event_type,
   // Quote the comma-separated hash value array to always create 2 CSV cells.
   std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
   std::string pipeline_and_content = CsvCat(pipeline_hash, str);
-  WriteLnAndFlush(out_, pipeline_and_content);
-  if (event_log_)
-    WriteLnAndFlush(event_log_, CsvCat(MakeEventLogPrefix(event_type),
-                                       pipeline_and_content));
+  LogLine(event_type, pipeline_and_content);
 }
 
 void LayerData::LogTimeDelta(const char* event_type,
                              const std::string& extra_content) {
   absl::MutexLock lock(&log_time_lock_);
-  std::optional<int64_t> logged_delta;
   auto now = absl::Now();
   if (last_log_time_ != absl::InfinitePast()) {
-    logged_delta = ToInt64Nanoseconds(now - last_log_time_);
-    WriteLnAndFlush(out_, CsvCat(*logged_delta, extra_content));
+    int64_t logged_delta = ToInt64Nanoseconds(now - last_log_time_);
+    LogLine(event_type, CsvCat(logged_delta, extra_content), now);
   }
   last_log_time_ = now;
-  if (logged_delta && event_log_)
-    WriteLnAndFlush(event_log_, CsvCat(MakeEventLogPrefix(event_type, now),
-                                       *logged_delta, extra_content));
 }
 
 void LayerData::LogEventOnly(const char* event_type,
