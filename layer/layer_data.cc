@@ -292,4 +292,38 @@ VkResult LayerData::CreateShaderModule(
   HashShader(*shader_module, create_info->pCode, create_info->codeSize);
   return result;
 }
+
+VkDevice QueueToDeviceMap::GetDevice(VkQueue queue) const {
+  absl::MutexLock lock(&queue_to_device_lock_);
+  const auto it = queue_to_device_.find(queue);
+  assert (it != queue_to_device_.end());
+  return it->second;
+}
+
+void QueueToDeviceMap::SetDevice(VkQueue queue, VkDevice device) {
+  absl::MutexLock lock(&queue_to_device_lock_);
+  queue_to_device_.insert_or_assign(queue, device);
+}
+
+void QueueToDeviceMap::GetDeviceQueue(LayerData* layer_data, VkDevice device, uint32_t queue_family_index,
+                                       uint32_t queue_index, VkQueue* queue) {
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::GetDeviceQueue);
+  (next_proc)(device, queue_family_index, queue_index, queue);
+  if (queue && *queue) {
+    SetDevice(*queue, device);
+  }
+}
+
+void QueueToDeviceMap::GetDeviceQueue2(LayerData* layer_data, VkDevice device,
+                                       const VkDeviceQueueInfo2* queue_info, VkQueue* queue)
+{
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::GetDeviceQueue2);
+  (next_proc)(device, queue_info, queue);
+  if (queue && *queue) {
+    SetDevice(*queue, device);
+  }
+}
+
 }  // namespace performancelayers

@@ -266,6 +266,32 @@ class LayerData {
   // Event log file appended to by multiple layers, or nullptr.
   FILE* event_log_ = nullptr;
 };
+
+class QueueToDeviceMap {
+ public:
+  // Records the device that owns |queue|.
+  void SetDevice(VkQueue queue, VkDevice device);
+
+  // Returns the device that owns |queue|.
+  VkDevice GetDevice(VkQueue queue) const;
+
+  // Intended to be called from an overridden vkGetDeviceQueue. Calls the next
+  // layer, and records the result.
+  void GetDeviceQueue(LayerData* layer_data, VkDevice device, uint32_t queue_family_index,
+                               uint32_t queue_index, VkQueue* queue);
+  // Intended to be called from an overridden vkGetDeviceQueue2. Calls the next
+  // layer, and records the result.
+  void GetDeviceQueue2(LayerData* layer_data, VkDevice device,
+                       const VkDeviceQueueInfo2* queue_info, VkQueue* queue);
+
+ private:
+  mutable absl::Mutex queue_to_device_lock_;
+  // The map from a queue to the device that owns it.
+  absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
+      ABSL_GUARDED_BY(queue_to_device_lock_);
+
+};
+
 }  // namespace performancelayers
 
 #endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LAYER_DATA_H_

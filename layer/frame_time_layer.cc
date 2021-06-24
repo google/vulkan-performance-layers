@@ -67,18 +67,17 @@ class FrameTimeLayerData : public performancelayers::LayerData {
 
   ~FrameTimeLayerData() override;
 
-  // Records the device that owns |queue|.
-  void SetDevice(VkQueue queue, VkDevice device) {
-    absl::MutexLock lock(&queue_to_device_lock_);
-    queue_to_device_.insert_or_assign(queue, device);
+  void GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
+                      uint32_t queue_index, VkQueue* queue) {
+    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index, queue_index, queue);
   }
 
-  // Returns the device that owns |cmd_buffer|.
-  VkDevice GetDevice(VkQueue queue) const {
-    absl::MutexLock lock(&queue_to_device_lock_);
-    assert(queue_to_device_.count(queue) != 0);
-    return queue_to_device_.at(queue);
+  void GetDeviceQueue2(VkDevice device,
+                       const VkDeviceQueueInfo2* queue_info, VkQueue* queue) {
+    queue_to_device_map_.GetDeviceQueue2(this, device, queue_info, queue);
   }
+
+  VkDevice GetDevice(VkQueue queue) { return queue_to_device_map_.GetDevice(queue); }
 
   static constexpr uint64_t kInvalidFrameNum = ~uint64_t(0);
 
@@ -99,10 +98,7 @@ class FrameTimeLayerData : public performancelayers::LayerData {
   std::string benchmark_start_pattern_;
   std::optional<performancelayers::LogScanner> benchmark_log_scanner_;
 
-  mutable absl::Mutex queue_to_device_lock_;
-  // The map from a queue to the device that owns it.
-  absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
-      ABSL_GUARDED_BY(queue_to_device_lock_);
+  performancelayers::QueueToDeviceMap queue_to_device_map_;
 };
 
 FrameTimeLayerData* GetLayerData() {
@@ -206,26 +202,14 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
 SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue,
                           (VkDevice device, uint32_t queue_family_index,
                            uint32_t queue_index, VkQueue* queue)) {
-  auto* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue);
-  (next_proc)(device, queue_family_index, queue_index, queue);
-  if (queue && *queue) {
-    layer_data->SetDevice(*queue, device);
-  }
+  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index, queue);
 }
 
 SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue2,
                           (VkDevice device,
                            const VkDeviceQueueInfo2* queue_info,
                            VkQueue* queue)) {
-  auto* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue2);
-  (next_proc)(device, queue_info, queue);
-  if (queue && *queue) {
-    layer_data->SetDevice(*queue, device);
-  }
+  GetLayerData()->GetDeviceQueue2(device, queue_info, queue);
 }
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the

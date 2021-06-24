@@ -351,12 +351,13 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, QueueWaitIdle, (VkQueue queue)) {
 SPL_RUNTIME_LAYER_FUNC(void, GetDeviceQueue,
                        (VkDevice device, uint32_t queue_family_index,
                         uint32_t queue_index, VkQueue* queue)) {
-  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue);
-  (next_proc)(device, queue_family_index, queue_index, queue);
+  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index, queue);
+}
 
-  layer_data->SetDevice(*queue, device);
+SPL_RUNTIME_LAYER_FUNC(void, GetDeviceQueue2,
+                       (VkDevice device, const VkDeviceQueueInfo2* queue_info,
+                        VkQueue* queue)) {
+  GetLayerData()->GetDeviceQueue2(device, queue_info, queue);
 }
 
 // Override for vkCreateShaderModule.  Records the hash of the shader module in
@@ -417,6 +418,7 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndexedIndirect);
     SPL_DISPATCH_DEVICE_FUNC(QueueWaitIdle);
     SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue);
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue2);
     // Get the next layer's instance of the device functions we will use. We do
     // not call these Vulkan functions directly to avoid re-entering the Vulkan
     // loader and confusing it.

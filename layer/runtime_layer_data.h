@@ -45,17 +45,29 @@ class RuntimeLayerData : public LayerData {
   }
 
   // Records the device that owns |cmd_buffer|.
-  void SetDevice(void* cmd_buffer, VkDevice device) {
+  void SetDevice(VkCommandBuffer cmd_buffer, VkDevice device) {
     absl::MutexLock lock(&cmd_buf_to_device_lock_);
     cmd_buf_to_device_.insert_or_assign(cmd_buffer, device);
   }
 
   // Returns the device that owns |cmd_buffer|.
-  VkDevice GetDevice(void* cmd_buffer) const {
+  VkDevice GetDevice(VkCommandBuffer cmd_buffer) const {
     absl::MutexLock lock(&cmd_buf_to_device_lock_);
     assert(cmd_buf_to_device_.count(cmd_buffer) != 0);
     return cmd_buf_to_device_.at(cmd_buffer);
   }
+
+  void GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
+                            uint32_t queue_index, VkQueue* queue) {
+    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index, queue_index, queue);
+  }
+
+  void GetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* queue_info,
+                       VkQueue* queue) {
+    queue_to_device_map_.GetDeviceQueue2(this, device, queue_info, queue);
+  }
+
+  VkDevice GetDevice(VkQueue queue) { return queue_to_device_map_.GetDevice(queue); }
 
   // Records |pipeline| as the latest pipeline that has been bound to
   // |cmd_buffer|.
@@ -90,7 +102,7 @@ class RuntimeLayerData : public LayerData {
  private:
   mutable absl::Mutex cmd_buf_to_device_lock_;
   // The map from a command buffer to the device that owns it.
-  absl::flat_hash_map<void*, VkDevice> cmd_buf_to_device_
+  absl::flat_hash_map<VkCommandBuffer, VkDevice> cmd_buf_to_device_
       ABSL_GUARDED_BY(cmd_buf_to_device_lock_);
 
   mutable absl::Mutex cmd_buf_to_pipeline_lock_;
@@ -103,6 +115,8 @@ class RuntimeLayerData : public LayerData {
   // pipelines.
   std::vector<QueryInfo> timestamp_queries_
       ABSL_GUARDED_BY(timestamp_queries_lock_);
+
+  QueueToDeviceMap queue_to_device_map_;
 };
 
 }  // namespace performancelayers
