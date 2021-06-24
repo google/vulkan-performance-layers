@@ -44,44 +44,50 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
     return queue_to_device_.at(queue);
   }
 
-  void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize size) {
+  void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
+                            VkDeviceSize size) {
     absl::MutexLock lock(&memory_lock_);
     bool inserted;
-    std::tie(std::ignore, inserted) = memory_hash_map_.try_emplace({device, memory}, size);
+    std::tie(std::ignore, inserted) =
+        memory_hash_map_.try_emplace({device, memory}, size);
     assert(inserted);
     current_allocation_size_ += size;
-    peak_allocation_size_ = std::max(peak_allocation_size_, current_allocation_size_);
+    peak_allocation_size_ =
+        std::max(peak_allocation_size_, current_allocation_size_);
   }
 
   void RecordFreeMemory(VkDevice device, VkDeviceMemory memory) {
     absl::MutexLock lock(&memory_lock_);
     auto it = memory_hash_map_.find({device, memory});
-    assert (it != memory_hash_map_.end());
+    assert(it != memory_hash_map_.end());
     VkDeviceSize size = it->second;
     memory_hash_map_.erase(it);
 
-    assert (size <= current_allocation_size_);
+    assert(size <= current_allocation_size_);
     current_allocation_size_ -= size;
   }
 
   void RecordDestroyDeviceMemory(VkDevice device) {
     absl::MutexLock lock(&memory_lock_);
     VkDeviceSize size = 0;
-    for (auto it = memory_hash_map_.begin(); it != memory_hash_map_.end(); ++it) {
+    for (auto it = memory_hash_map_.begin(); it != memory_hash_map_.end();
+         ++it) {
       if (it->first.first == device) {
         size += it->second;
         // Note that absl::flat_hash_map does not invalidate iterators on erase.
         memory_hash_map_.erase(it);
       }
     }
-    assert (size <= current_allocation_size_);
+    assert(size <= current_allocation_size_);
     current_allocation_size_ -= size;
   }
 
   void LogUsage() {
-    LogLine("allocate_memory", performancelayers::CsvCat(current_allocation_size_,
-                                                         peak_allocation_size_));
+    LogLine("allocate_memory",
+            performancelayers::CsvCat(current_allocation_size_,
+                                      peak_allocation_size_));
   }
+
  private:
   mutable absl::Mutex queue_to_device_lock_;
   // The map from a queue to the device that owns it.
@@ -92,8 +98,8 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
   // The map from device, memory tuple to its allocation size. TODO: Should be a
   // two-level map, so that per-device data can be purged easily on
   // DestroyDevice.
-  absl::flat_hash_map<std::pair<VkDevice, VkDeviceMemory>, VkDeviceSize> memory_hash_map_
-      ABSL_GUARDED_BY(memory_hash_lock_);
+  absl::flat_hash_map<std::pair<VkDevice, VkDeviceMemory>, VkDeviceSize>
+      memory_hash_map_ ABSL_GUARDED_BY(memory_hash_lock_);
 
   VkDeviceSize current_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
   VkDeviceSize peak_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
@@ -209,8 +215,8 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
 
 // Override for vkQueuePresentKHR. Used to log memory usage once per frame.
 SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
-                          (VkQueue queue,
-                           const VkPresentInfoKHR* present_info)) {
+                            (VkQueue queue,
+                             const VkPresentInfoKHR* present_info)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
 
   layer_data->LogUsage();
@@ -221,10 +227,11 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
   return (next_proc)(queue, present_info);
 }
 
-// Override for vkGetDeviceQueue. Queue -> Device mapping needed for QueuePresentKHR.
+// Override for vkGetDeviceQueue. Queue -> Device mapping needed for
+// QueuePresentKHR.
 SPL_MEMORY_USAGE_LAYER_FUNC(void, GetDeviceQueue,
-                          (VkDevice device, uint32_t queue_family_index,
-                           uint32_t queue_index, VkQueue* queue)) {
+                            (VkDevice device, uint32_t queue_family_index,
+                             uint32_t queue_index, VkQueue* queue)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
