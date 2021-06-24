@@ -23,8 +23,7 @@ namespace {
 
 constexpr uint32_t kMemoryUsageLayerVersion = 1;
 constexpr char kLayerName[] = "VK_LAYER_STADIA_memory_usage";
-constexpr char kLayerDescription[] =
-    "Stadia Memory Usage Measuring Layer";
+constexpr char kLayerDescription[] = "Stadia Memory Usage Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 
 class MemoryUsageLayerData : public performancelayers::LayerData {
