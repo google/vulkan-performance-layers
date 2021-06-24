@@ -58,8 +58,9 @@ class RuntimeLayerData : public LayerData {
   }
 
   void GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
-                            uint32_t queue_index, VkQueue* queue) {
-    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index, queue_index, queue);
+                      uint32_t queue_index, VkQueue* queue) {
+    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index,
+                                        queue_index, queue);
   }
 
   void GetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* queue_info,
@@ -67,7 +68,9 @@ class RuntimeLayerData : public LayerData {
     queue_to_device_map_.GetDeviceQueue2(this, device, queue_info, queue);
   }
 
-  VkDevice GetDevice(VkQueue queue) { return queue_to_device_map_.GetDevice(queue); }
+  VkDevice GetDevice(VkQueue queue) {
+    return queue_to_device_map_.GetDevice(queue);
+  }
 
   // Records |pipeline| as the latest pipeline that has been bound to
   // |cmd_buffer|.

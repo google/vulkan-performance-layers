@@ -351,7 +351,8 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, QueueWaitIdle, (VkQueue queue)) {
 SPL_RUNTIME_LAYER_FUNC(void, GetDeviceQueue,
                        (VkDevice device, uint32_t queue_family_index,
                         uint32_t queue_index, VkQueue* queue)) {
-  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index, queue);
+  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index,
+                                 queue);
 }
 
 SPL_RUNTIME_LAYER_FUNC(void, GetDeviceQueue2,

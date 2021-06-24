@@ -69,15 +69,18 @@ class FrameTimeLayerData : public performancelayers::LayerData {
 
   void GetDeviceQueue(VkDevice device, uint32_t queue_family_index,
                       uint32_t queue_index, VkQueue* queue) {
-    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index, queue_index, queue);
+    queue_to_device_map_.GetDeviceQueue(this, device, queue_family_index,
+                                        queue_index, queue);
   }
 
-  void GetDeviceQueue2(VkDevice device,
-                       const VkDeviceQueueInfo2* queue_info, VkQueue* queue) {
+  void GetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* queue_info,
+                       VkQueue* queue) {
     queue_to_device_map_.GetDeviceQueue2(this, device, queue_info, queue);
   }
 
-  VkDevice GetDevice(VkQueue queue) { return queue_to_device_map_.GetDevice(queue); }
+  VkDevice GetDevice(VkQueue queue) {
+    return queue_to_device_map_.GetDevice(queue);
+  }
 
   static constexpr uint64_t kInvalidFrameNum = ~uint64_t(0);
 
@@ -202,7 +205,8 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
 SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue,
                           (VkDevice device, uint32_t queue_family_index,
                            uint32_t queue_index, VkQueue* queue)) {
-  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index, queue);
+  GetLayerData()->GetDeviceQueue(device, queue_family_index, queue_index,
+                                 queue);
 }
 
 SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue2,
