@@ -31,6 +31,20 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
       : LayerData(log_filename, "Current (bytes), peak (bytes)") {}
+
+  // Records the device that owns |queue|.
+  void SetDevice(VkQueue queue, VkDevice device) {
+    absl::MutexLock lock(&queue_to_device_lock_);
+    queue_to_device_.insert_or_assign(queue, device);
+  }
+
+  // Returns the device that owns |queue|.
+  VkDevice GetDevice(VkQueue queue) const {
+    absl::MutexLock lock(&queue_to_device_lock_);
+    assert(queue_to_device_.count(queue) != 0);
+    return queue_to_device_.at(queue);
+  }
+
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize size) {
     absl::MutexLock lock(&memory_lock_);
     bool inserted;
@@ -38,8 +52,6 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
     assert(inserted);
     current_allocation_size_ += size;
     peak_allocation_size_ = std::max(peak_allocation_size_, current_allocation_size_);
-    LogLine("allocate_memory", performancelayers::CsvCat(current_allocation_size_,
-                                                         peak_allocation_size_));
   }
 
   void RecordFreeMemory(VkDevice device, VkDeviceMemory memory) {
@@ -67,7 +79,16 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
     current_allocation_size_ -= size;
   }
 
+  void LogUsage() {
+    LogLine("allocate_memory", performancelayers::CsvCat(current_allocation_size_,
+                                                         peak_allocation_size_));
+  }
  private:
+  mutable absl::Mutex queue_to_device_lock_;
+  // The map from a queue to the device that owns it.
+  absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
+      ABSL_GUARDED_BY(queue_to_device_lock_);
+
   mutable absl::Mutex memory_lock_;
   // The map from device, memory tuple to its allocation size. TODO: Should be a
   // two-level map, so that per-device data can be purged easily on
@@ -99,6 +120,40 @@ MemoryUsageLayerData* GetLayerData() {
 //////////////////////////////////////////////////////////////////////////////
 //  Implementation of the instance functions we want to override.
 //////////////////////////////////////////////////////////////////////////////
+
+// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
+// instances. This mapping is used in the vkCreateDevice override.
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
+                            (VkInstance instance,
+                             uint32_t* pPhysicalDeviceCount,
+                             VkPhysicalDevice* pPhysicalDevices)) {
+  return GetLayerData()->EnumeratePhysicalDevices(
+      instance, pPhysicalDeviceCount, pPhysicalDevices);
+}
+
+// Override for vkCreateDevice.  Builds the dispatch table for the new device
+// and add it to the layer data.
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
+                            (VkPhysicalDevice physical_device,
+                             const VkDeviceCreateInfo* create_info,
+                             const VkAllocationCallbacks* allocator,
+                             VkDevice* device)) {
+  auto build_dispatch_table = [device](PFN_vkGetDeviceProcAddr gdpa) {
+    VkLayerDispatchTable dispatch_table{};
+
+    // Get the next layer's instance of the device functions we will override.
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
+    SPL_DISPATCH_DEVICE_FUNC(AllocateMemory);
+    SPL_DISPATCH_DEVICE_FUNC(FreeMemory);
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue);
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue2);
+    SPL_DISPATCH_DEVICE_FUNC(QueuePresentKHR);
+    return dispatch_table;
+  };
+  return GetLayerData()->CreateDevice(physical_device, create_info, allocator,
+                                      device, build_dispatch_table);
+}
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the
 // layer data.
@@ -139,16 +194,6 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateInstance,
 //  Implementation of the device function we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
-// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
-// instances. This mapping is used in the vkCreateDevice override.
-SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
-                            (VkInstance instance,
-                             uint32_t* pPhysicalDeviceCount,
-                             VkPhysicalDevice* pPhysicalDevices)) {
-  return GetLayerData()->EnumeratePhysicalDevices(
-      instance, pPhysicalDeviceCount, pPhysicalDevices);
-}
-
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
 SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
@@ -163,25 +208,47 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
   layer_data->RemoveDevice(device);
 }
 
-// Override for vkCreateDevice.  Builds the dispatch table for the new device
-// and add it to the layer data.
-SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
-                            (VkPhysicalDevice physical_device,
-                             const VkDeviceCreateInfo* create_info,
-                             const VkAllocationCallbacks* allocator,
-                             VkDevice* device)) {
-  auto build_dispatch_table = [device](PFN_vkGetDeviceProcAddr gdpa) {
-    VkLayerDispatchTable dispatch_table{};
+// Override for vkQueuePresentKHR. Used to log memory usage once per frame.
+SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
+                          (VkQueue queue,
+                           const VkPresentInfoKHR* present_info)) {
+  MemoryUsageLayerData* layer_data = GetLayerData();
 
-    // Get the next layer's instance of the device functions we will override.
-    SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
-    SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
-    SPL_DISPATCH_DEVICE_FUNC(AllocateMemory);
-    SPL_DISPATCH_DEVICE_FUNC(FreeMemory);
-    return dispatch_table;
-  };
-  return GetLayerData()->CreateDevice(physical_device, create_info, allocator,
-                                      device, build_dispatch_table);
+  layer_data->LogUsage();
+
+  auto device = layer_data->GetDevice(queue);
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::QueuePresentKHR);
+  return (next_proc)(queue, present_info);
+}
+
+// Override for vkGetDeviceQueue. Queue -> Device mapping needed for QueuePresentKHR.
+SPL_MEMORY_USAGE_LAYER_FUNC(void, GetDeviceQueue,
+                          (VkDevice device, uint32_t queue_family_index,
+                           uint32_t queue_index, VkQueue* queue)) {
+  MemoryUsageLayerData* layer_data = GetLayerData();
+
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::GetDeviceQueue);
+  (next_proc)(device, queue_family_index, queue_index, queue);
+  if (queue && *queue) {
+    layer_data->SetDevice(*queue, device);
+  }
+}
+
+// Similar override for vkGetDeviceQueue2. Queue -> Device mapping needed for
+// QueuePresentKHR.
+SPL_MEMORY_USAGE_LAYER_FUNC(void, GetDeviceQueue2,
+                            (VkDevice device,
+                             const VkDeviceQueueInfo2* queue_info,
+                             VkQueue* queue)) {
+  auto* layer_data = GetLayerData();
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::GetDeviceQueue2);
+  (next_proc)(device, queue_info, queue);
+  if (queue && *queue) {
+    layer_data->SetDevice(*queue, device);
+  }
 }
 
 // Override for vkAllocateMemory.  Records the allocation size.
