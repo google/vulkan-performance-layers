@@ -46,7 +46,7 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
 
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
                             VkDeviceSize size) {
-    absl::MutexLock lock(&memory_lock_);
+    absl::MutexLock lock(&memory_hash_lock_);
     bool inserted;
     std::tie(std::ignore, inserted) =
         memory_hash_map_.try_emplace({device, memory}, size);
@@ -57,7 +57,7 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
   }
 
   void RecordFreeMemory(VkDevice device, VkDeviceMemory memory) {
-    absl::MutexLock lock(&memory_lock_);
+    absl::MutexLock lock(&memory_hash_lock_);
     auto it = memory_hash_map_.find({device, memory});
     assert(it != memory_hash_map_.end());
     VkDeviceSize size = it->second;
@@ -68,7 +68,7 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
   }
 
   void RecordDestroyDeviceMemory(VkDevice device) {
-    absl::MutexLock lock(&memory_lock_);
+    absl::MutexLock lock(&memory_hash_lock_);
     VkDeviceSize size = 0;
     for (auto it = memory_hash_map_.begin(); it != memory_hash_map_.end();
          ++it) {
@@ -94,7 +94,7 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
   absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
       ABSL_GUARDED_BY(queue_to_device_lock_);
 
-  mutable absl::Mutex memory_lock_;
+  mutable absl::Mutex memory_hash_lock_;
   // The map from device, memory tuple to its allocation size. TODO: Should be a
   // two-level map, so that per-device data can be purged easily on
   // DestroyDevice.
