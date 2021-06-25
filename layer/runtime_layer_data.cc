@@ -29,10 +29,10 @@ bool RuntimeLayerData::GetNewQueryInfo(VkCommandBuffer cmd_buf,
   createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
   createInfo.queryCount = 2;
 
-  VkDevice device = GetDevice(cmd_buf);
   auto create_query_pool_function =
-      GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreateQueryPool);
+      GetNextDeviceProcAddr(cmd_buf, &VkLayerDispatchTable::CreateQueryPool);
 
+  VkDevice device = GetDevice(DeviceKey(cmd_buf));
   auto ret = (create_query_pool_function)(device, &createInfo, nullptr,
                                           timestamp_query_pool);
   if (ret != VK_SUCCESS) {
@@ -65,14 +65,14 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
   for (auto info = timestamp_queries_.begin();
        info != timestamp_queries_.end();) {
     VkCommandBuffer cmd_buf = info->command_buffer;
-    VkDevice device = GetDevice(cmd_buf);
     auto query_pool_results_function = GetNextDeviceProcAddr(
-        device, &VkLayerDispatchTable::GetQueryPoolResults);
+        cmd_buf, &VkLayerDispatchTable::GetQueryPoolResults);
     auto destroy_query_pool_function =
-        GetNextDeviceProcAddr(device, &VkLayerDispatchTable::DestroyQueryPool);
+        GetNextDeviceProcAddr(cmd_buf, &VkLayerDispatchTable::DestroyQueryPool);
 
     constexpr uint64_t kInvalidValue = ~uint64_t(0);
     uint64_t query_data[2] = {kInvalidValue, kInvalidValue};
+    VkDevice device = GetDevice(DeviceKey(cmd_buf));
     VkResult result = (query_pool_results_function)(
         device, info->timestamp_pool,
         /*firstQuery=*/0, /*queryCount=*/2,

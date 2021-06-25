@@ -42,6 +42,87 @@ std::string CsvCat(Args&&... args) {
   return absl::StrJoin(std::forward_as_tuple(std::forward<Args>(args)...), ",");
 }
 
+// Base class for Vulkan dispatchable handle wrappers. Exposes the underlying
+// key to derived classes and implements basic operations like key comparisons
+// and hash.
+template <typename ConcreteKeyT>
+class DispatchableKeyBase {
+ public:
+  bool operator==(const ConcreteKeyT& other) const {
+    return key_ == other.key_;
+  }
+  bool operator!=(const ConcreteKeyT& other) const {
+    return key_ != other.key_;
+  }
+  size_t hash() const { return std::hash<void*>{}(key_); }
+
+ protected:
+  using BaseT = DispatchableKeyBase;
+  explicit DispatchableKeyBase(void** raw_handle) {
+    if (raw_handle) key_ = *raw_handle;
+  }
+  void* key_ = nullptr;
+};
+
+// InstanceKey provides the underlying instance key for dispatchable instance
+// handles: VkInstance and VkPhysicalDevice. Typically used with
+// `GetNextInstanceProcAddr`. Can be used as a hash map key.
+class InstanceKey : public DispatchableKeyBase<InstanceKey> {
+ public:
+  InstanceKey() : BaseT(nullptr) {}
+
+  explicit InstanceKey(VkInstance instance)
+      : BaseT(reinterpret_cast<void**>(instance)) {}
+  explicit InstanceKey(VkPhysicalDevice gpu)
+      : BaseT(reinterpret_cast<void**>(gpu)) {}
+
+  // Copyable and moveable.
+  InstanceKey(const InstanceKey&) = default;
+  InstanceKey(InstanceKey&&) = default;
+  InstanceKey& operator=(const InstanceKey&) = default;
+  InstanceKey& operator=(InstanceKey&&) = default;
+};
+
+// DeviceKey provides the underlying device key for dispatchable device
+// handles: VkDevice, VkQueue, and VkCommandBuffer. Typically used with
+// `GetNextDeviceProcAddr`. Can be used as a hash map key.
+class DeviceKey : public DispatchableKeyBase<DeviceKey> {
+ public:
+  DeviceKey() : BaseT(nullptr) {}
+
+  explicit DeviceKey(VkDevice device)
+      : BaseT(reinterpret_cast<void**>(device)) {}
+  explicit DeviceKey(VkQueue queue) : BaseT(reinterpret_cast<void**>(queue)) {}
+  explicit DeviceKey(VkCommandBuffer cmd_buffer)
+      : BaseT(reinterpret_cast<void**>(cmd_buffer)) {}
+
+  // Copyable and moveable.
+  DeviceKey(const DeviceKey&) = default;
+  DeviceKey(DeviceKey&&) = default;
+  DeviceKey& operator=(const DeviceKey&) = default;
+  DeviceKey& operator=(DeviceKey&&) = default;
+};
+
+}  // namespace performancelayers
+
+// Make dispatchable keys hashable.
+namespace std {
+template <>
+struct hash<performancelayers::InstanceKey> {
+  size_t operator()(const performancelayers::InstanceKey& key) const {
+    return key.hash();
+  }
+};
+template <>
+struct hash<performancelayers::DeviceKey> {
+  size_t operator()(const performancelayers::DeviceKey& key) const {
+    return key.hash();
+  }
+};
+}  // namespace std
+
+namespace performancelayers {
+
 // A class that contains all of the data that is needed for the functions
 // that this layer will override.
 //
@@ -51,8 +132,9 @@ std::string CsvCat(Args&&... args) {
 class LayerData {
  public:
   using InstanceDispatchMap =
-      absl::flat_hash_map<VkInstance, VkLayerInstanceDispatchTable>;
-  using DeviceDispatchMap = absl::flat_hash_map<VkDevice, VkLayerDispatchTable>;
+      absl::flat_hash_map<InstanceKey, VkLayerInstanceDispatchTable>;
+  using DeviceDispatchMap =
+      absl::flat_hash_map<DeviceKey, VkLayerDispatchTable>;
 
   LayerData(char* log_filename, const char* header);
 
@@ -62,54 +144,77 @@ class LayerData {
     }
   }
 
-  // Records the dispatch table that is associated with |instance|.
+  // Records the dispatch table and instance key that is associated with
+  // |instance|.
   bool AddInstance(VkInstance instance,
                    const VkLayerInstanceDispatchTable& dispatch_table) {
+    InstanceKey key(instance);
+
     absl::MutexLock lock(&instance_dispatch_lock_);
-    return instance_dispatch_map_.insert({instance, dispatch_table}).second;
+    const bool inserted =
+        instance_dispatch_map_.insert({key, dispatch_table}).second;
+    if (inserted) {
+      instance_keys_map_[key] = instance;
+    }
+    return inserted;
   }
 
   // Removes the dispatch table and physical devices associated with |instance|.
   void RemoveInstance(VkInstance instance);
 
-  // Records that the physical device |gpu| is associated with |instance|.
-  void AddPhysicalDevice(VkInstance instance, VkPhysicalDevice gpu) {
-    absl::MutexLock lock(&gpu_instance_lock_);
-    assert((gpu_instance_map_.count(gpu) == 0 ||
-            gpu_instance_map_[gpu] == instance) &&
-           "PhysicalDevice already bound to another Instance");
-    gpu_instance_map_[gpu] = instance;
-  }
-
-  // Returns the instance associated with |gpu|, or a null handle if there is
-  // none.
-  VkInstance GetInstance(VkPhysicalDevice gpu) const {
-    absl::MutexLock lock(&gpu_instance_lock_);
-    if (auto it = gpu_instance_map_.find(gpu); it != gpu_instance_map_.end())
+  // Returns the instance associated with |instance_key|, or a null handle if
+  // there is none.
+  VkInstance GetInstance(InstanceKey instance_key) const {
+    absl::MutexLock lock(&instance_dispatch_lock_);
+    if (auto it = instance_keys_map_.find(instance_key);
+        it != instance_keys_map_.end()) {
       return it->second;
+    }
     return VK_NULL_HANDLE;
   }
 
-  // Records the dispatch table and get_device_proc_addr associated with
+  // Records the dispatch table and device key associated with
   // |device|.
   bool AddDevice(VkDevice device, const VkLayerDispatchTable& dispatch_table) {
+    DeviceKey key(device);
     absl::MutexLock dispatch_table_lock(&device_dispatch_lock_);
-    return device_dispatch_map_.insert({device, dispatch_table}).second;
+    const bool inserted =
+        device_dispatch_map_.insert({key, dispatch_table}).second;
+    if (inserted) {
+      device_keys_map_[key] = device;
+    }
+    return inserted;
   }
 
   // Removes the dispatch table associated with |device|.
   void RemoveDevice(VkDevice device) {
+    DeviceKey key(device);
     absl::MutexLock lock(&device_dispatch_lock_);
-    device_dispatch_map_.erase(device);
+    device_dispatch_map_.erase(key);
+    device_keys_map_.erase(key);
+  }
+
+  // Returns the device associated with |device_key|, or a null handle if
+  // there is none.
+  VkDevice GetDevice(DeviceKey device_key) const {
+    absl::MutexLock lock(&device_dispatch_lock_);
+    if (auto it = device_keys_map_.find(device_key);
+        it != device_keys_map_.end()) {
+      return it->second;
+    }
+    return VK_NULL_HANDLE;
   }
 
   // Returns the function pointer for the function |funct_ptr| for the next
-  // layer in |instance|. This is can be used only with functions declared in
-  // the dispatch table. See https://renderdoc.org/vulkan-layer-guide.html.
-  template <typename TFuncPtr>
-  auto GetNextInstanceProcAddr(VkInstance instance, TFuncPtr func_ptr) const {
+  // layer in the instance. |instance_handle| must be a VkInstance or
+  // VkPhysicalDevice. This is can be used only with functions declared in the
+  // dispatch table. See https://renderdoc.org/vulkan-layer-guide.html.
+  template <typename DispatchableInstanceHandleT, typename TFuncPtr>
+  auto GetNextInstanceProcAddr(DispatchableInstanceHandleT instance_handle,
+                               TFuncPtr func_ptr) const {
     absl::MutexLock lock(&instance_dispatch_lock_);
-    auto instance_dispatch_iter = instance_dispatch_map_.find(instance);
+    auto instance_dispatch_iter =
+        instance_dispatch_map_.find(InstanceKey(instance_handle));
     assert(instance_dispatch_iter != instance_dispatch_map_.end());
     auto proc_addr = instance_dispatch_iter->second.*func_ptr;
     assert(proc_addr);
@@ -117,12 +222,15 @@ class LayerData {
   }
 
   // Returns the function pointer for the function |funct_ptr| for the next
-  // layer in |device|. This is can be used only with functions declared in the
+  // layer in the device. |device_handle| must be one of: VkDevice, VkQueue, or
+  // VkCommandBuffer. This is can be used only with functions declared in the
   // dispatch table. See https://renderdoc.org/vulkan-layer-guide.html.
-  template <typename TFuncPtr>
-  auto GetNextDeviceProcAddr(VkDevice device, TFuncPtr func_ptr) const {
+  template <typename DispatchableDeviceHandleT, typename TFuncPtr>
+  auto GetNextDeviceProcAddr(DispatchableDeviceHandleT device_handle,
+                             TFuncPtr func_ptr) const {
     absl::MutexLock lock(&device_dispatch_lock_);
-    auto device_dispatch_iter = device_dispatch_map_.find(device);
+    auto device_dispatch_iter =
+        device_dispatch_map_.find(DeviceKey(device_handle));
     assert(device_dispatch_iter != device_dispatch_map_.end());
     auto proc_addr = device_dispatch_iter->second.*func_ptr;
     assert(proc_addr);
@@ -241,15 +349,16 @@ class LayerData {
   // A map from a VkInstance to its VkLayerInstanceDispatchTable.
   InstanceDispatchMap instance_dispatch_map_
       ABSL_GUARDED_BY(instance_dispatch_lock_);
+  // A map from an InstanceKey to its VkInstance.
+  absl::flat_hash_map<InstanceKey, VkInstance> instance_keys_map_;
+  ABSL_GUARDED_BY(instance_dispatch_lock_)
 
   mutable absl::Mutex device_dispatch_lock_;
   // A map from a VkDevice to its VkLayerDispatchTable.
   DeviceDispatchMap device_dispatch_map_ ABSL_GUARDED_BY(device_dispatch_lock_);
-
-  mutable absl::Mutex gpu_instance_lock_;
-  // A map from a VkPhysicalDevice to its VkInstance.
-  absl::flat_hash_map<VkPhysicalDevice, VkInstance> gpu_instance_map_
-      ABSL_GUARDED_BY(gpu_instance_lock_);
+  // A map from a DeviceKey to its VkDevice.
+  absl::flat_hash_map<DeviceKey, VkDevice> device_keys_map_;
+  ABSL_GUARDED_BY(device_dispatch_lock_)
 
   mutable absl::Mutex shader_hash_lock_;
   // The map from a shader module to the result of its hash.

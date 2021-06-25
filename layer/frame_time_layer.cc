@@ -67,19 +67,6 @@ class FrameTimeLayerData : public performancelayers::LayerData {
 
   ~FrameTimeLayerData() override;
 
-  // Records the device that owns |queue|.
-  void SetDevice(VkQueue queue, VkDevice device) {
-    absl::MutexLock lock(&queue_to_device_lock_);
-    queue_to_device_.insert_or_assign(queue, device);
-  }
-
-  // Returns the device that owns |cmd_buffer|.
-  VkDevice GetDevice(VkQueue queue) const {
-    absl::MutexLock lock(&queue_to_device_lock_);
-    assert(queue_to_device_.count(queue) != 0);
-    return queue_to_device_.at(queue);
-  }
-
   static constexpr uint64_t kInvalidFrameNum = ~uint64_t(0);
 
   // Returns the next frame number.
@@ -98,11 +85,6 @@ class FrameTimeLayerData : public performancelayers::LayerData {
   uint32_t benchmark_state_idx_ = 0;
   std::string benchmark_start_pattern_;
   std::optional<performancelayers::LogScanner> benchmark_log_scanner_;
-
-  mutable absl::Mutex queue_to_device_lock_;
-  // The map from a queue to the device that owns it.
-  absl::flat_hash_map<VkQueue, VkDevice> queue_to_device_
-      ABSL_GUARDED_BY(queue_to_device_lock_);
 };
 
 FrameTimeLayerData* GetLayerData() {
@@ -197,35 +179,9 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
     std::_Exit(99);
   }
 
-  auto device = layer_data->GetDevice(queue);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::QueuePresentKHR);
+      queue, &VkLayerDispatchTable::QueuePresentKHR);
   return (next_proc)(queue, present_info);
-}
-
-SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue,
-                          (VkDevice device, uint32_t queue_family_index,
-                           uint32_t queue_index, VkQueue* queue)) {
-  auto* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue);
-  (next_proc)(device, queue_family_index, queue_index, queue);
-  if (queue && *queue) {
-    layer_data->SetDevice(*queue, device);
-  }
-}
-
-SPL_FRAME_TIME_LAYER_FUNC(void, GetDeviceQueue2,
-                          (VkDevice device,
-                           const VkDeviceQueueInfo2* queue_info,
-                           VkQueue* queue)) {
-  auto* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue2);
-  (next_proc)(device, queue_info, queue);
-  if (queue && *queue) {
-    layer_data->SetDevice(*queue, device);
-  }
 }
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the
@@ -254,7 +210,6 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, CreateInstance,
         // Get the next layer's instance of the instance functions we will
         // override.
         SPL_DISPATCH_INSTANCE_FUNC(DestroyInstance);
-        SPL_DISPATCH_INSTANCE_FUNC(EnumeratePhysicalDevices);
         SPL_DISPATCH_INSTANCE_FUNC(GetInstanceProcAddr);
         return dispatch_table;
       };
@@ -279,15 +234,6 @@ SPL_FRAME_TIME_LAYER_FUNC(void, DestroyDevice,
   layer_data->RemoveDevice(device);
 }
 
-// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
-// instances. This mapping is used in the vkCreateDevice override.
-SPL_FRAME_TIME_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
-                          (VkInstance instance, uint32_t* pPhysicalDeviceCount,
-                           VkPhysicalDevice* pPhysicalDevices)) {
-  return GetLayerData()->EnumeratePhysicalDevices(
-      instance, pPhysicalDeviceCount, pPhysicalDevices);
-}
-
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
 SPL_FRAME_TIME_LAYER_FUNC(VkResult, CreateDevice,
@@ -301,8 +247,6 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, CreateDevice,
     // Get the next layer's instance of the device functions we will override.
     SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
     SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
-    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue);
-    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue2);
     SPL_DISPATCH_DEVICE_FUNC(QueuePresentKHR);
     return dispatch_table;
   };

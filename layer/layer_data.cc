@@ -114,19 +114,10 @@ LayerData::LayerData(char* log_filename, const char* header) {
 }
 
 void LayerData::RemoveInstance(VkInstance instance) {
-  {
-    absl::MutexLock lock(&instance_dispatch_lock_);
-    instance_dispatch_map_.erase(instance);
-  }
-  {
-    absl::MutexLock lock(&gpu_instance_lock_);
-    absl::flat_hash_set<VkPhysicalDevice> associated_gpus;
-    for (const auto& gpu_instance_pair : gpu_instance_map_)
-      if (gpu_instance_pair.second == instance)
-        associated_gpus.insert(gpu_instance_pair.first);
-
-    for (VkPhysicalDevice gpu : associated_gpus) gpu_instance_map_.erase(gpu);
-  }
+  InstanceKey key(instance);
+  absl::MutexLock lock(&instance_dispatch_lock_);
+  instance_dispatch_map_.erase(key);
+  instance_keys_map_.erase(key);
 }
 
 void LayerData::LogLine(const char* event_type, const std::string& line,
@@ -240,7 +231,7 @@ VkResult LayerData::CreateDevice(
       device_create_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
   PFN_vkGetDeviceProcAddr get_device_proc_addr =
       device_create_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-  VkInstance instance = GetInstance(physical_device);
+  VkInstance instance = GetInstance(InstanceKey(physical_device));
   assert(instance);
 
   // Create the device after removing the current layer.
@@ -264,21 +255,6 @@ VkResult LayerData::CreateDevice(
     return VK_ERROR_OUT_OF_HOST_MEMORY;
   }
   return VK_SUCCESS;
-}
-
-VkResult LayerData::EnumeratePhysicalDevices(
-    VkInstance instance, uint32_t* pPhysicalDeviceCount,
-    VkPhysicalDevice* pPhysicalDevices) {
-  auto next_proc = GetNextInstanceProcAddr(
-      instance, &VkLayerInstanceDispatchTable::EnumeratePhysicalDevices);
-  const VkResult res =
-      next_proc(instance, pPhysicalDeviceCount, pPhysicalDevices);
-
-  if (res == VK_SUCCESS && pPhysicalDeviceCount && pPhysicalDevices)
-    for (uint32_t i = 0, e = *pPhysicalDeviceCount; i != e; ++i)
-      AddPhysicalDevice(instance, pPhysicalDevices[i]);
-
-  return res;
 }
 
 VkResult LayerData::CreateShaderModule(

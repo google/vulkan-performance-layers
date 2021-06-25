@@ -75,7 +75,6 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateInstance,
         // Get the next layer's instance of the instance functions we will
         // override.
         SPL_DISPATCH_INSTANCE_FUNC(DestroyInstance);
-        SPL_DISPATCH_INSTANCE_FUNC(EnumeratePhysicalDevices);
         SPL_DISPATCH_INSTANCE_FUNC(GetInstanceProcAddr);
         return dispatch_table;
       };
@@ -125,30 +124,13 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
       device, &VkLayerDispatchTable::CreateGraphicsPipelines);
 
   assert(create_info_count > 0 &&
-         "Spececification says create_info_count must be > 0.");
+         "Specification says create_info_count must be > 0.");
 
   auto result = (next_proc)(device, pipeline_cache, create_info_count,
                             create_infos, alloc_callbacks, pipelines);
 
   for (uint32_t i = 0; i < create_info_count; i++) {
     layer_data->HashGraphicsPipeline(pipelines[i], create_infos[i]);
-  }
-  return result;
-}
-
-// Override for vkAllocateCommandBuffers.  Records the device for the command
-// buffer that was allocated.
-SPL_RUNTIME_LAYER_FUNC(VkResult, AllocateCommandBuffers,
-                       (VkDevice device,
-                        const VkCommandBufferAllocateInfo* allocate_info,
-                        VkCommandBuffer* command_buffers)) {
-  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::AllocateCommandBuffers);
-  auto result = (next_proc)(device, allocate_info, command_buffers);
-
-  for (uint32_t i = 0; i < allocate_info->commandBufferCount; i++) {
-    layer_data->SetDevice(command_buffers[i], device);
   }
   return result;
 }
@@ -160,9 +142,8 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdBindPipeline,
                         VkPipelineBindPoint pipeline_bind_point,
                         VkPipeline pipeline)) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  auto next_proc =
-      layer_data->GetNextDeviceProcAddr(layer_data->GetDevice(command_buffer),
-                                        &VkLayerDispatchTable::CmdBindPipeline);
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      command_buffer, &VkLayerDispatchTable::CmdBindPipeline);
   (next_proc)(command_buffer, pipeline_bind_point, pipeline);
 
   layer_data->BindPipeline(command_buffer, pipeline);
@@ -174,9 +155,8 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdDispatch,
                        (VkCommandBuffer command_buffer, uint32_t group_count_x,
                         uint32_t group_count_y, uint32_t group_count_z)) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  VkDevice device = layer_data->GetDevice(command_buffer);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdDispatch);
+      command_buffer, &VkLayerDispatchTable::CmdDispatch);
 
   VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
   VkQueryPool stat_query_pool = VK_NULL_HANDLE;
@@ -187,13 +167,13 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdDispatch,
     return;
   }
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdWriteTimestamp);
+      command_buffer, &VkLayerDispatchTable::CmdWriteTimestamp);
   auto begin_query_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdBeginQuery);
+      command_buffer, &VkLayerDispatchTable::CmdBeginQuery);
   auto end_query_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdEndQuery);
+      command_buffer, &VkLayerDispatchTable::CmdEndQuery);
   auto pipeline_barrier_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdPipelineBarrier);
+      command_buffer, &VkLayerDispatchTable::CmdPipelineBarrier);
 
   // Ensure any previous commands have completed.
   VkMemoryBarrier full_memory_barrier = {
@@ -231,8 +211,7 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
                                   VkCommandBuffer command_buffer,
                                   Args&&... args) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  VkDevice device = layer_data->GetDevice(command_buffer);
-  auto next_proc = layer_data->GetNextDeviceProcAddr(device, func_ptr);
+  auto next_proc = layer_data->GetNextDeviceProcAddr(command_buffer, func_ptr);
 
   VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
   VkQueryPool stat_query_pool = VK_NULL_HANDLE;
@@ -243,13 +222,13 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
     return;
   }
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdWriteTimestamp);
+      command_buffer, &VkLayerDispatchTable::CmdWriteTimestamp);
   auto pipeline_barrier_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdPipelineBarrier);
+      command_buffer, &VkLayerDispatchTable::CmdPipelineBarrier);
   auto begin_query_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdBeginQuery);
+      command_buffer, &VkLayerDispatchTable::CmdBeginQuery);
   auto end_query_function = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::CmdEndQuery);
+      command_buffer, &VkLayerDispatchTable::CmdEndQuery);
 
   // Ensure any previous commands have completed.
   VkMemoryBarrier full_memory_barrier = {
@@ -340,23 +319,10 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, DeviceWaitIdle, (VkDevice device)) {
 SPL_RUNTIME_LAYER_FUNC(VkResult, QueueWaitIdle, (VkQueue queue)) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
-      layer_data->GetDevice(queue), &VkLayerDispatchTable::QueueWaitIdle);
+      queue, &VkLayerDispatchTable::QueueWaitIdle);
   VkResult result = (next_proc)(queue);
   layer_data->LogAndRemoveQueryPools();
   return result;
-}
-
-// Override for vkGetDeviceQueue.  Records the device that owns the queue.
-// after the draw command that will be added.
-SPL_RUNTIME_LAYER_FUNC(void, GetDeviceQueue,
-                       (VkDevice device, uint32_t queue_family_index,
-                        uint32_t queue_index, VkQueue* queue)) {
-  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
-  auto next_proc = layer_data->GetNextDeviceProcAddr(
-      device, &VkLayerDispatchTable::GetDeviceQueue);
-  (next_proc)(device, queue_family_index, queue_index, queue);
-
-  layer_data->SetDevice(*queue, device);
 }
 
 // Override for vkCreateShaderModule.  Records the hash of the shader module in
@@ -368,15 +334,6 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateShaderModule,
                         VkShaderModule* shader_module)) {
   return GetLayerData()->CreateShaderModule(device, create_info, allocator,
                                             shader_module);
-}
-
-// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
-// instances. This mapping is used in the vkCreateDevice override.
-SPL_RUNTIME_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
-                       (VkInstance instance, uint32_t* pPhysicalDeviceCount,
-                        VkPhysicalDevice* pPhysicalDevices)) {
-  return GetLayerData()->EnumeratePhysicalDevices(
-      instance, pPhysicalDeviceCount, pPhysicalDevices);
 }
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
@@ -408,7 +365,6 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
-    SPL_DISPATCH_DEVICE_FUNC(AllocateCommandBuffers);
     SPL_DISPATCH_DEVICE_FUNC(CmdBindPipeline);
     SPL_DISPATCH_DEVICE_FUNC(CmdDispatch);
     SPL_DISPATCH_DEVICE_FUNC(CmdDraw);
@@ -416,7 +372,6 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndirect);
     SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndexedIndirect);
     SPL_DISPATCH_DEVICE_FUNC(QueueWaitIdle);
-    SPL_DISPATCH_DEVICE_FUNC(GetDeviceQueue);
     // Get the next layer's instance of the device functions we will use. We do
     // not call these Vulkan functions directly to avoid re-entering the Vulkan
     // loader and confusing it.
