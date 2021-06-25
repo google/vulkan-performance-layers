@@ -81,7 +81,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateInstance,
         // Get the next layer's instance of the instance functions we will
         // override.
         SPL_DISPATCH_INSTANCE_FUNC(DestroyInstance);
-        SPL_DISPATCH_INSTANCE_FUNC(EnumeratePhysicalDevices);
         SPL_DISPATCH_INSTANCE_FUNC(GetInstanceProcAddr);
         return dispatch_table;
       };
@@ -165,16 +164,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
                              VkShaderModule* shader_module)) {
   return GetLayerData()->CreateShaderModule(device, create_info, allocator,
                                             shader_module);
-}
-
-// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
-// instances. This mapping is used in the vkCreateDevice override.
-SPL_COMPILE_TIME_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
-                            (VkInstance instance,
-                             uint32_t* pPhysicalDeviceCount,
-                             VkPhysicalDevice* pPhysicalDevices)) {
-  return GetLayerData()->EnumeratePhysicalDevices(
-      instance, pPhysicalDeviceCount, pPhysicalDevices);
 }
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
