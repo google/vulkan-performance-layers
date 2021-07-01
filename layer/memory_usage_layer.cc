@@ -138,7 +138,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyInstance,
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  (next_proc)(instance, allocator);
+  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
 }
 
@@ -178,7 +178,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
   layer_data->RecordDestroyDeviceMemory(device);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  (next_proc)(device, allocator);
+  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
 }
 
@@ -192,7 +192,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueuePresentKHR);
-  return (next_proc)(queue, present_info);
+  return next_proc(queue, present_info);
 }
 
 // Override for vkAllocateMemory.  Records the allocation size.
@@ -205,7 +205,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, AllocateMemory,
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::AllocateMemory);
 
-  auto result = (next_proc)(device, pAllocateInfo, pAllocator, pMemory);
+  auto result = next_proc(device, pAllocateInfo, pAllocator, pMemory);
 
   if (result == VK_SUCCESS) {
     // TODO: Also records failed allocations in some way?
@@ -225,7 +225,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, FreeMemory,
 
   layer_data->RecordFreeMemory(device, memory);
 
-  (next_proc)(device, memory, pAllocator);
+  next_proc(device, memory, pAllocator);
 }
 
 }  // namespace
