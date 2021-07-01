@@ -332,12 +332,6 @@ class LayerData {
       std::function<VkLayerInstanceDispatchTable(PFN_vkGetInstanceProcAddr)>
           get_dispatch_table);
 
-  // Call the next procedure for VkEnumeratePhysicalDevices and associates
-  // |instance| with the returned |pPhysicalDevices|.
-  VkResult EnumeratePhysicalDevices(VkInstance instance,
-                                    uint32_t* pPhysicalDeviceCount,
-                                    VkPhysicalDevice* pPhysicalDevices);
-
   // Builds the shader module by calling |CreateShaderModule| for the next
   // layer, and records the hash of the resulting shader module.
   VKAPI_ATTR VkResult CreateShaderModule(
