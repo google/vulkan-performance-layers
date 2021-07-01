@@ -126,16 +126,6 @@ MemoryUsageLayerData* GetLayerData() {
 //  Implementation of the instance functions we want to override.
 //////////////////////////////////////////////////////////////////////////////
 
-// Override fro vkEnumeratePhysicalDevices.  Maps physical devices to their
-// instances. This mapping is used in the vkCreateDevice override.
-SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, EnumeratePhysicalDevices,
-                            (VkInstance instance,
-                             uint32_t* pPhysicalDeviceCount,
-                             VkPhysicalDevice* pPhysicalDevices)) {
-  return GetLayerData()->EnumeratePhysicalDevices(
-      instance, pPhysicalDeviceCount, pPhysicalDevices);
-}
-
 // Override for vkCreateDevice.  Builds the dispatch table for the new device
 // and add it to the layer data.
 SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
@@ -186,7 +176,6 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateInstance,
         // Get the next layer's instance of the instance functions we will
         // override.
         SPL_DISPATCH_INSTANCE_FUNC(DestroyInstance);
-        SPL_DISPATCH_INSTANCE_FUNC(EnumeratePhysicalDevices);
         SPL_DISPATCH_INSTANCE_FUNC(GetInstanceProcAddr);
         return dispatch_table;
       };
