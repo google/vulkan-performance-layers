@@ -31,21 +31,32 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 add_subdirectory(third_party)
 
 if(DEFINED VULKAN_HEADERS_INSTALL_DIR)
+  if(NOT IS_ABSOLUTE "${VULKAN_HEADERS_INSTALL_DIR}")
+    message(FATAL_ERROR "VULKAN_HEADERS_INSTALL_DIR must be an absolute path")
+  endif()
   find_path(VulkanHeaders_INCLUDE_DIR
       NAMES vulkan/vk_layer.h
       HINTS ${VULKAN_HEADERS_INSTALL_DIR}/include
       NO_CMAKE_FIND_ROOT_PATH)
+  if(VulkanHeaders_INCLUDE_DIR MATCHES ".*_INCLUDE_DIR-NOTFOUND$")
+    message(FATAL_ERROR "Vulkan Headers not found. Set VULKAN_HEADERS_INSTALL_DIR to the Vulkan-Headers installation directory.")
+  endif()
 else()
   message(FATAL_ERROR "VULKAN_HEADERS_INSTALL_DIR must be specified!")
 endif()
-
 message(STATUS "VulkanHeaders ${VulkanHeaders_INCLUDE_DIR}")
 
 if(DEFINED VULKAN_LOADER_GENERATED_DIR)
+  if(NOT IS_ABSOLUTE "${VULKAN_LOADER_GENERATED_DIR}")
+    message(FATAL_ERROR "VULKAN_LOADER_GENERATED_DIR must be an absolute path")
+  endif()
   find_path(VulkanLoaderGenerated_INCLUDE_DIR
       NAMES vk_layer_dispatch_table.h
       HINTS ${VULKAN_LOADER_GENERATED_DIR}
       NO_CMAKE_FIND_ROOT_PATH)
+  if(VulkanLoaderGenerated_INCLUDE_DIR MATCHES ".*_INCLUDE_DIR-NOTFOUND$")
+    message(FATAL_ERROR "Vulkan Loader sources not found. Set VULKAN_LOADER_GENERATED_DIR to the 'Vulkan-Loader/loader/generated' directory.")
+  endif()
 else()
   message(FATAL_ERROR "VULKAN_LOADER_GENERATED_DIR must be specified!")
 endif()

@@ -24,7 +24,7 @@ You can find more details in the descriptions included in each script file.
 
 Sample build instructions:
 
-```
+```shell
 # Checkout the submodules.
 git submodule update --init
 
@@ -42,9 +42,22 @@ cmake .. \
     && ninja install
 ```
 
+NOTE: `VULKAN_HEADERS_INSTALL_DIR` and `VULKAN_LOADER_GENERATED_DIR` must be absolute paths.
+
+NOTE: `VULKAN_HEADERS_INSTALL_DIR` must be set to the installation directory of Vulkan-Headers. For example, if you build directory is `VULKAN_HEADERS_BUILD` and your build commands were:
+
+   ```shell
+   cmake <PATH_TO_VULKAN_HEADERS> -GNinja -DCMAKE_INSTALL_PREFIX=run
+   ninja
+   ninja install
+   ```
+
+   you should set `VULKAN_HEADERS_INSTALL_DIR` to `VULKAN_HEADERS_BUILD/run`.
+
+NOTE: `VULKAN_LOADER_GENERATED_DIR` should be the directory that contains `vk_layer_dispatch_table.h`. For example, if you cloned Vulkan-Loader to `PATH_TO_VULKAN_LOADER`, you should set `VULKAN_LOADER_GENERATED_DIR` to `PATH_TO_VULKAN_LOADER/loader/generated`.
+
 See [docker/build.Dockerfile](docker/build.Dockerfile) for detailed Ubuntu build instructions.
 
 ## Disclaimer
 
 This is not an officially supported Google product. Support and/or new releases may be limited.
-
