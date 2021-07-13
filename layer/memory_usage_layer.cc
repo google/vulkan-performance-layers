@@ -69,10 +69,9 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
     current_allocation_size_ -= size;
   }
 
-  void LogUsage() {
-    LogLine("allocate_memory",
-            performancelayers::CsvCat(current_allocation_size_,
-                                      peak_allocation_size_));
+  void LogUsage(const char* event_type) {
+    LogLine(event_type, performancelayers::CsvCat(current_allocation_size_,
+                                                  peak_allocation_size_));
   }
 
  private:
@@ -176,6 +175,8 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
   MemoryUsageLayerData* layer_data = GetLayerData();
   // Remove memory allocation records for the device being destroyed.
   layer_data->RecordDestroyDeviceMemory(device);
+  layer_data->LogUsage("memory_usage_destroy_device");
+
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
   next_proc(device, allocator);
@@ -188,7 +189,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
                              const VkPresentInfoKHR* present_info)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
 
-  layer_data->LogUsage();
+  layer_data->LogUsage("memory_usage_present");
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueuePresentKHR);
