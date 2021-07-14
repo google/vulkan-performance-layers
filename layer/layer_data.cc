@@ -165,12 +165,16 @@ void LayerData::LogEventOnly(std::string_view event_type,
   }
 }
 
+std::string LayerData::ShaderHashToString(uint64_t hash) {
+  return absl::StrFormat("%#x", hash);
+}
+
 std::string LayerData::PipelineHashToString(const HashVector& pipeline) const {
   return absl::StrCat("[",
                       absl::StrJoin(pipeline, ",",
-                                    [](std::string* out, uint64_t num) {
+                                    [](std::string* out, uint64_t hash) {
                                       return absl::StrAppend(
-                                          out, absl::StrFormat("%#x", num));
+                                          out, ShaderHashToString(hash));
                                     }),
                       "]");
 }

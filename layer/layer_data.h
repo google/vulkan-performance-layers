@@ -314,6 +314,9 @@ class LayerData {
   void LogEventOnly(std::string_view event_type,
                     std::string_view extra_content = "") const;
 
+  // Returns a string representation of |hash|.
+  static std::string ShaderHashToString(uint64_t hash);
+
   // Returns a string identifier of |pipeline|.
   std::string PipelineHashToString(const HashVector& pipeline) const;
 
