@@ -181,7 +181,7 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueuePresentKHR);
-  return (next_proc)(queue, present_info);
+  return next_proc(queue, present_info);
 }
 
 // Override for vkDestroyInstance.  Deletes the entry for |instance| from the
@@ -192,7 +192,7 @@ SPL_FRAME_TIME_LAYER_FUNC(void, DestroyInstance,
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  (next_proc)(instance, allocator);
+  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
 }
 
@@ -230,7 +230,7 @@ SPL_FRAME_TIME_LAYER_FUNC(void, DestroyDevice,
   auto* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  (next_proc)(device, allocator);
+  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
 }
 

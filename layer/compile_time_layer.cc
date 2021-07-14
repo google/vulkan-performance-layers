@@ -63,7 +63,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyInstance,
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  (next_proc)(instance, allocator);
+  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
 }
 
@@ -109,13 +109,13 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
          "Specification says create_info_count must be > 0.");
 
   absl::Time start = absl::Now();
-  auto result = (next_proc)(device, pipeline_cache, create_info_count,
-                            create_infos, alloc_callbacks, pipelines);
+  auto result = next_proc(device, pipeline_cache, create_info_count,
+                          create_infos, alloc_callbacks, pipelines);
   absl::Time end = absl::Now();
   uint64_t duration = ToInt64Nanoseconds(end - start);
 
   std::vector<uint64_t> hashes;
-  for (uint32_t i = 0; i < create_info_count; i++) {
+  for (uint32_t i = 0; i < create_info_count; ++i) {
     std::vector<uint64_t> h =
         layer_data->HashComputePipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
@@ -140,8 +140,8 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
          "Specification says create_info_count must be > 0.");
 
   auto start = absl::Now();
-  auto result = (next_proc)(device, pipeline_cache, create_info_count,
-                            create_infos, alloc_callbacks, pipelines);
+  auto result = next_proc(device, pipeline_cache, create_info_count,
+                          create_infos, alloc_callbacks, pipelines);
   auto end = absl::Now();
   uint64_t duration = ToInt64Nanoseconds(end - start);
 
@@ -174,7 +174,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  (next_proc)(device, allocator);
+  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
 }
 

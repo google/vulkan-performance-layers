@@ -262,7 +262,7 @@ VkResult LayerData::CreateShaderModule(
     const VkAllocationCallbacks* allocator, VkShaderModule* shader_module) {
   auto next_proc =
       GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreateShaderModule);
-  auto result = (next_proc)(device, create_info, allocator, shader_module);
+  auto result = next_proc(device, create_info, allocator, shader_module);
   HashShader(*shader_module, create_info->pCode, create_info->codeSize);
   return result;
 }

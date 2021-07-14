@@ -57,7 +57,7 @@ SPL_RUNTIME_LAYER_FUNC(void, DestroyInstance,
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  (next_proc)(instance, allocator);
+  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
 }
 
@@ -102,8 +102,8 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   assert(create_info_count > 0 &&
          "Spececification says create_info_count must be > 0.");
 
-  auto result = (next_proc)(device, pipeline_cache, create_info_count,
-                            create_infos, alloc_callbacks, pipelines);
+  auto result = next_proc(device, pipeline_cache, create_info_count,
+                          create_infos, alloc_callbacks, pipelines);
 
   for (uint32_t i = 0; i < create_info_count; i++) {
     layer_data->HashComputePipeline(pipelines[i], create_infos[i]);
@@ -126,8 +126,8 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   assert(create_info_count > 0 &&
          "Specification says create_info_count must be > 0.");
 
-  auto result = (next_proc)(device, pipeline_cache, create_info_count,
-                            create_infos, alloc_callbacks, pipelines);
+  auto result = next_proc(device, pipeline_cache, create_info_count,
+                          create_infos, alloc_callbacks, pipelines);
 
   for (uint32_t i = 0; i < create_info_count; i++) {
     layer_data->HashGraphicsPipeline(pipelines[i], create_infos[i]);
@@ -144,7 +144,7 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdBindPipeline,
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       command_buffer, &VkLayerDispatchTable::CmdBindPipeline);
-  (next_proc)(command_buffer, pipeline_bind_point, pipeline);
+  next_proc(command_buffer, pipeline_bind_point, pipeline);
 
   layer_data->BindPipeline(command_buffer, pipeline);
 }
@@ -163,7 +163,7 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdDispatch,
   if (!layer_data->GetNewQueryInfo(command_buffer, &timestamp_query_pool,
                                    &stat_query_pool)) {
     // Couldn't allocate query pool - continue as if no tracing is in place.
-    (next_proc)(command_buffer, group_count_x, group_count_y, group_count_z);
+    next_proc(command_buffer, group_count_x, group_count_y, group_count_z);
     return;
   }
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
@@ -188,7 +188,7 @@ SPL_RUNTIME_LAYER_FUNC(void, CmdDispatch,
   (begin_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0,
                          /*flags=*/0);
 
-  (next_proc)(command_buffer, group_count_x, group_count_y, group_count_z);
+  next_proc(command_buffer, group_count_x, group_count_y, group_count_z);
 
   // Get the timestamp when the dispatch starts.
   (write_timestamp_function)(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -218,7 +218,7 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
   if (!layer_data->GetNewQueryInfo(command_buffer, &timestamp_query_pool,
                                    &stat_query_pool)) {
     // Couldn't allocate query pool - continue as if no tracing is in place.
-    (next_proc)(command_buffer, std::forward<Args>(args)...);
+    next_proc(command_buffer, std::forward<Args>(args)...);
     return;
   }
   auto write_timestamp_function = layer_data->GetNextDeviceProcAddr(
@@ -243,7 +243,7 @@ static void WrapCallWithTimestamp(TFuncPtr func_ptr,
   (begin_query_function)(command_buffer, stat_query_pool, /*queryIndex=*/0,
                          /*flags=*/0);
 
-  (next_proc)(command_buffer, std::forward<Args>(args)...);
+  next_proc(command_buffer, std::forward<Args>(args)...);
 
   // Get the timestamp when the dispatch starts.
   (write_timestamp_function)(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -309,7 +309,7 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, DeviceWaitIdle, (VkDevice device)) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DeviceWaitIdle);
-  VkResult result = (next_proc)(device);
+  VkResult result = next_proc(device);
   layer_data->LogAndRemoveQueryPools();
   return result;
 }
@@ -320,7 +320,7 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, QueueWaitIdle, (VkQueue queue)) {
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueueWaitIdle);
-  VkResult result = (next_proc)(queue);
+  VkResult result = next_proc(queue);
   layer_data->LogAndRemoveQueryPools();
   return result;
 }
@@ -344,7 +344,7 @@ SPL_RUNTIME_LAYER_FUNC(void, DestroyDevice,
   performancelayers::RuntimeLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  (next_proc)(device, allocator);
+  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
 }
 
