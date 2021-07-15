@@ -18,11 +18,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
-#include <set>
+#include <string>
+#include <string_view>
 #include <tuple>
-#include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
@@ -135,6 +136,7 @@ class LayerData {
       absl::flat_hash_map<InstanceKey, VkLayerInstanceDispatchTable>;
   using DeviceDispatchMap =
       absl::flat_hash_map<DeviceKey, VkLayerDispatchTable>;
+  using HashVector = absl::InlinedVector<uint64_t, 3>;
 
   LayerData(char* log_filename, const char* header);
 
@@ -257,10 +259,9 @@ class LayerData {
 
   // Computes and caches the hash of the compute pipeline |pipeline| that was
   // created using |create_info|.
-  std::vector<uint64_t> HashComputePipeline(
+  HashVector HashComputePipeline(
       VkPipeline pipeline, const VkComputePipelineCreateInfo& create_info) {
-    std::vector<uint64_t> hashes;
-    hashes.push_back(GetShaderHash(create_info.stage.module));
+    HashVector hashes = {GetShaderHash(create_info.stage.module)};
 
     absl::MutexLock lock(&pipeline_hash_lock_);
     pipeline_hash_map_.insert_or_assign(pipeline, hashes);
@@ -269,9 +270,9 @@ class LayerData {
 
   // Computes and caches the hash of the graphics pipeline |pipeline| that was
   // created using |create_info|.
-  std::vector<uint64_t> HashGraphicsPipeline(
+  HashVector HashGraphicsPipeline(
       VkPipeline pipeline, const VkGraphicsPipelineCreateInfo& create_info) {
-    std::vector<uint64_t> hashes;
+    HashVector hashes;
     for (uint32_t j = 0; j < create_info.stageCount; ++j) {
       uint64_t h = GetShaderHash(create_info.pStages[j].module);
       hashes.push_back(h);
@@ -283,38 +284,38 @@ class LayerData {
   }
 
   // Returns the cached hash of the pipeline |pipeline|.
-  const std::vector<uint64_t>& GetPipelineHash(VkPipeline pipeline) const {
+  const HashVector& GetPipelineHash(VkPipeline pipeline) const {
     absl::MutexLock lock(&pipeline_hash_lock_);
     assert(pipeline_hash_map_.count(pipeline) != 0);
     return pipeline_hash_map_.at(pipeline);
   }
 
   // Logs one line to the log file, and to the event log file, if enabled.
-  void LogLine(const char* event_type, const std::string& line,
+  void LogLine(std::string_view event_type, std::string_view line,
                absl::Time timestamp = absl::Now()) const;
 
   // Logs the compile time |time| for |pipeline| to the log file.
   // |event_type| is used as the key in the event log file, if enabled.
   // |pipeline| is any series of integers that represent the pipeline.
   // We are using the hash of each shader that is part of the pipeline.
-  void Log(const char* event_type, const std::vector<uint64_t>& pipeline,
+  void Log(std::string_view event_type, const HashVector& pipeline,
            uint64_t time) const;
 
   // Logs an arbitrary string prefixed by the given pipeline.
-  void Log(const char* event_type, const std::vector<uint64_t>& pipeline,
-           const std::string& str) const;
+  void Log(std::string_view event_type, const HashVector& pipeline,
+           std::string_view prefix) const;
 
   // Logs the time since the last call to LogTimeDelta.
-  void LogTimeDelta(const char* event_type,
-                    const std::string& extra_content = "");
+  void LogTimeDelta(std::string_view event_type,
+                    std::string_view extra_content = "");
 
   // Logs an arbitrary |extra_content| to the event log file.
   // Doesn't write to the layer log file.
-  void LogEventOnly(const char* event_type,
-                    const std::string& extra_content = "") const;
+  void LogEventOnly(std::string_view event_type,
+                    std::string_view extra_content = "") const;
 
   // Returns a string identifier of |pipeline|.
-  std::string PipelineHashToString(const std::vector<uint64_t>& pipeline) const;
+  std::string PipelineHashToString(const HashVector& pipeline) const;
 
   // Sets the dispatch table for |device| to the one returned by
   // |get_dispatch_table|, and calls |CreateDevice| for the next layer.
@@ -361,7 +362,7 @@ class LayerData {
 
   mutable absl::Mutex pipeline_hash_lock_;
   // The map from a pipeline to the result of its hash.
-  absl::flat_hash_map<VkPipeline, std::vector<uint64_t>> pipeline_hash_map_
+  absl::flat_hash_map<VkPipeline, HashVector> pipeline_hash_map_
       ABSL_GUARDED_BY(pipeline_hash_lock_);
 
   // A pointer to the log file to use.

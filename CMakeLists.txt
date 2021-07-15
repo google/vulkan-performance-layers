@@ -80,6 +80,7 @@ target_include_directories(performance_layers_support_lib INTERFACE
 target_link_libraries(performance_layers_support_lib INTERFACE
     absl::flat_hash_map
     absl::flat_hash_set
+    absl::inlined_vector
     absl::status
     absl::statusor
     absl::strings

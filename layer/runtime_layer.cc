@@ -100,7 +100,7 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateComputePipelines,
       device, &VkLayerDispatchTable::CreateComputePipelines);
 
   assert(create_info_count > 0 &&
-         "Spececification says create_info_count must be > 0.");
+         "Specification says create_info_count must be > 0.");
 
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);

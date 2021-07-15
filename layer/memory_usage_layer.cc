@@ -29,7 +29,9 @@ constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 class MemoryUsageLayerData : public performancelayers::LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerData(log_filename, "Current (bytes), peak (bytes)") {}
+      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
+    LogEventOnly("memory_usage_layer_init");
+  }
 
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
                             VkDeviceSize size) {
@@ -89,12 +91,6 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
 MemoryUsageLayerData* GetLayerData() {
   // Don't use new -- make the destructor run when the layer gets unloaded.
   static MemoryUsageLayerData layer_data(getenv(kLogFilenameEnvVar));
-  static bool first_call = true;
-  if (first_call) {
-    layer_data.LogEventOnly("memory_usage_layer_init");
-    first_call = false;
-  }
-
   return &layer_data;
 }
 

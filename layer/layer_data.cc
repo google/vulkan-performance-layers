@@ -30,9 +30,9 @@ namespace {
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
 
 // Writes |content| to |file| and flushes it.
-void WriteLnAndFlush(FILE* file, const std::string& content) {
+void WriteLnAndFlush(FILE* file, std::string_view content) {
   assert(file);
-  fprintf(file, "%s\n", content.c_str());
+  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
   fflush(file);
 }
 
@@ -44,7 +44,7 @@ std::string QuoteStr(StrTy&& str) {
 
 // Returns event log file row prefix with ','-separated |event_type| and
 // |timestamp|.
-std::string MakeEventLogPrefix(const char* event_type,
+std::string MakeEventLogPrefix(std::string_view event_type,
                                absl::Time timestamp = absl::Now()) {
   return performancelayers::CsvCat(event_type, absl::ToUnixNanos(timestamp));
 }
@@ -120,7 +120,7 @@ void LayerData::RemoveInstance(VkInstance instance) {
   instance_keys_map_.erase(key);
 }
 
-void LayerData::LogLine(const char* event_type, const std::string& line,
+void LayerData::LogLine(std::string_view event_type, std::string_view line,
                         absl::Time timestamp) const {
   WriteLnAndFlush(out_, line);
   if (event_log_)
@@ -128,8 +128,7 @@ void LayerData::LogLine(const char* event_type, const std::string& line,
                     CsvCat(MakeEventLogPrefix(event_type, timestamp), line));
 }
 
-void LayerData::Log(const char* event_type,
-                    const std::vector<uint64_t>& pipeline,
+void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
                     uint64_t time) const {
   // Quote the comma-separated hash value array to always create 2 CSV cells.
   std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
@@ -137,17 +136,16 @@ void LayerData::Log(const char* event_type,
   LogLine(event_type, pipeline_and_time);
 }
 
-void LayerData::Log(const char* event_type,
-                    const std::vector<uint64_t>& pipeline,
-                    const std::string& str) const {
+void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
+                    std::string_view prefix) const {
   // Quote the comma-separated hash value array to always create 2 CSV cells.
   std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
-  std::string pipeline_and_content = CsvCat(pipeline_hash, str);
+  std::string pipeline_and_content = CsvCat(pipeline_hash, prefix);
   LogLine(event_type, pipeline_and_content);
 }
 
-void LayerData::LogTimeDelta(const char* event_type,
-                             const std::string& extra_content) {
+void LayerData::LogTimeDelta(std::string_view event_type,
+                             std::string_view extra_content) {
   absl::MutexLock lock(&log_time_lock_);
   auto now = absl::Now();
   if (last_log_time_ != absl::InfinitePast()) {
@@ -157,8 +155,8 @@ void LayerData::LogTimeDelta(const char* event_type,
   last_log_time_ = now;
 }
 
-void LayerData::LogEventOnly(const char* event_type,
-                             const std::string& extra_content) const {
+void LayerData::LogEventOnly(std::string_view event_type,
+                             std::string_view extra_content) const {
   if (event_log_) {
     const std::string prefix = MakeEventLogPrefix(event_type);
     WriteLnAndFlush(event_log_, extra_content.empty()
@@ -167,8 +165,7 @@ void LayerData::LogEventOnly(const char* event_type,
   }
 }
 
-std::string LayerData::PipelineHashToString(
-    const std::vector<uint64_t>& pipeline) const {
+std::string LayerData::PipelineHashToString(const HashVector& pipeline) const {
   return absl::StrCat("[",
                       absl::StrJoin(pipeline, ",",
                                     [](std::string* out, uint64_t num) {
