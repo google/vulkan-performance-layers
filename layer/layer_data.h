@@ -27,6 +27,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "farmhash.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
@@ -241,13 +242,14 @@ class LayerData {
 
   // Records the hash of |code|, whose size is |size|, and associates it with
   // |shader_module|. This must be called before you can call |GetShaderHash|
-  // with |shader_module|.
-  void HashShader(VkShaderModule shader_module, const uint32_t* code,
-                  uint32_t size) {
+  // with |shader_module|. Returns the calculated hash value.
+  uint64_t HashShader(VkShaderModule shader_module, const uint32_t* code,
+                      uint32_t size) {
     const char* c = reinterpret_cast<const char*>(code);
     uint64_t hash_value = util::Fingerprint64(c, size);
     absl::MutexLock lock(&shader_hash_lock_);
     shader_hash_map_.insert_or_assign(shader_module, hash_value);
+    return hash_value;
   }
 
   // Return the hash associated with |shader_module|.
@@ -336,9 +338,18 @@ class LayerData {
       std::function<VkLayerInstanceDispatchTable(PFN_vkGetInstanceProcAddr)>
           get_dispatch_table);
 
+  struct ShaderModuleCreateResult {
+    VkResult result;
+    uint64_t shader_hash;
+    absl::Time create_start;
+    absl::Time create_end;
+  };
+
   // Builds the shader module by calling |CreateShaderModule| for the next
   // layer, and records the hash of the resulting shader module.
-  VKAPI_ATTR VkResult CreateShaderModule(
+  // Returns the creation result, including the shader hash, start and end time
+  // of shader creation.
+  ShaderModuleCreateResult CreateShaderModule(
       VkDevice device, const VkShaderModuleCreateInfo* create_info,
       const VkAllocationCallbacks* allocator, VkShaderModule* shader_module);
 

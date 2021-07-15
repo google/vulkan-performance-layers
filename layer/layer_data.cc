@@ -23,7 +23,6 @@
 #include "absl/synchronization/mutex.h"
 #include "layer_utils.h"
 #include "logging.h"
-#include "vulkan/vulkan_core.h"
 
 namespace {
 
@@ -258,13 +257,16 @@ VkResult LayerData::CreateDevice(
   return VK_SUCCESS;
 }
 
-VkResult LayerData::CreateShaderModule(
+LayerData::ShaderModuleCreateResult LayerData::CreateShaderModule(
     VkDevice device, const VkShaderModuleCreateInfo* create_info,
     const VkAllocationCallbacks* allocator, VkShaderModule* shader_module) {
   auto next_proc =
       GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreateShaderModule);
-  auto result = next_proc(device, create_info, allocator, shader_module);
-  HashShader(*shader_module, create_info->pCode, create_info->codeSize);
-  return result;
+  absl::Time start = absl::Now();
+  VkResult result = next_proc(device, create_info, allocator, shader_module);
+  absl::Time end = absl::Now();
+  uint64_t hash =
+      HashShader(*shader_module, create_info->pCode, create_info->codeSize);
+  return {result, hash, start, end};
 }
 }  // namespace performancelayers

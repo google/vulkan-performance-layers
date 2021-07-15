@@ -48,12 +48,13 @@ class CompileTimeLayerData : public performancelayers::LayerData {
     std::optional<absl::Time> first_use_time = std::nullopt;
   };
 
-  // Records the time of the shader module creation.
-  void RecordShaderModuleCreation(VkShaderModule shader) {
+  // Records the time |create_start| of the |shader| creation.
+  void RecordShaderModuleCreation(VkShaderModule shader,
+                                  absl::Time create_start) {
     absl::MutexLock lock(&shader_module_usage_lock_);
     assert(!shader_module_to_usage_.contains(shader) &&
            "Shader already created");
-    shader_module_to_usage_[shader] = {absl::Now(), std::nullopt};
+    shader_module_to_usage_[shader] = {create_start, std::nullopt};
   }
 
   // Records shader module use in a pipeline creation. If this is the first use
@@ -225,12 +226,20 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
                              const VkAllocationCallbacks* allocator,
                              VkShaderModule* shader_module)) {
   CompileTimeLayerData* layer_data = GetLayerData();
-  const VkResult res = layer_data->CreateShaderModule(device, create_info,
-                                                      allocator, shader_module);
-  if (res == VK_SUCCESS) {
-    layer_data->RecordShaderModuleCreation(*shader_module);
+  const CompileTimeLayerData::ShaderModuleCreateResult res =
+      layer_data->CreateShaderModule(device, create_info, allocator,
+                                     shader_module);
+
+  if (res.result == VK_SUCCESS) {
+    layer_data->RecordShaderModuleCreation(*shader_module, res.create_start);
+    const int64_t create_time_ns =
+        absl::ToInt64Nanoseconds(res.create_end - res.create_start);
+    layer_data->LogEventOnly(
+        "create_shader_module_ns",
+        performancelayers::CsvCat(
+            layer_data->ShaderHashToString(res.shader_hash), create_time_ns));
   }
-  return res;
+  return res.result;
 }
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
