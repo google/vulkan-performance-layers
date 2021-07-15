@@ -332,8 +332,9 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateShaderModule,
                         const VkShaderModuleCreateInfo* create_info,
                         const VkAllocationCallbacks* allocator,
                         VkShaderModule* shader_module)) {
-  return GetLayerData()->CreateShaderModule(device, create_info, allocator,
-                                            shader_module);
+  return GetLayerData()
+      ->CreateShaderModule(device, create_info, allocator, shader_module)
+      .result;
 }
 
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
