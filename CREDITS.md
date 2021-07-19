@@ -17,3 +17,5 @@ please submit a patch to this file to add yourself.
    * Pipeline cache sideload layer.
 0. Brian Watling <bwatling@google.com>
    * Frame time layer.
+0. Niels Möller <nisse@google.com>
+   * Memory usage layer.
