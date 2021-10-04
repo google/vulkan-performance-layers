@@ -41,53 +41,53 @@ class CompileTimeLayerData : public performancelayers::LayerData {
     LogEventOnly("compile_time_layer_init");
   }
 
-  // Used to track the delay between shader module creation and its first use in
+  // Used to track the slack between shader module creation and its first use in
   // pipeline creation.
-  struct ShaderModuleDelay {
-    std::optional<absl::Time> creation_time = std::nullopt;
+  struct ShaderModuleSlack {
+    std::optional<absl::Time> creation_end_time = std::nullopt;
     std::optional<absl::Time> first_use_time = std::nullopt;
   };
 
-  // Records the time |create_start| of the |shader| creation.
+  // Records the time |create_end| of the |shader| creation.
   void RecordShaderModuleCreation(VkShaderModule shader,
-                                  absl::Time create_start) {
+                                  absl::Time create_end) {
     absl::MutexLock lock(&shader_module_usage_lock_);
     assert(!shader_module_to_usage_.contains(shader) &&
            "Shader already created");
-    shader_module_to_usage_[shader] = {create_start, std::nullopt};
+    shader_module_to_usage_[shader] = {create_end, std::nullopt};
   }
 
   // Records shader module use in a pipeline creation. If this is the first use
   // of this shader module, adds an event with the time since shader module
   // creation.
   void RecordShaderModuleUse(VkShaderModule shader) {
-    int64_t first_use_delay_ns = -1;
+    int64_t first_use_slack_ns = -1;
 
     {
       absl::MutexLock lock(&shader_module_usage_lock_);
       assert(shader_module_to_usage_.contains(shader) &&
              "Shader creation not recorded");
-      ShaderModuleDelay& usage_info = shader_module_to_usage_[shader];
-      assert(usage_info.creation_time.has_value());
+      ShaderModuleSlack& usage_info = shader_module_to_usage_[shader];
+      assert(usage_info.creation_end_time.has_value());
 
       if (!usage_info.first_use_time) {
         usage_info.first_use_time = absl::Now();
-        first_use_delay_ns = absl::ToInt64Nanoseconds(
-            *usage_info.first_use_time - *usage_info.creation_time);
+        first_use_slack_ns = absl::ToInt64Nanoseconds(
+            *usage_info.first_use_time - *usage_info.creation_end_time);
       }
     }
-    if (first_use_delay_ns != -1) {
+    if (first_use_slack_ns != -1) {
       const uint64_t hash = GetShaderHash(shader);
-      LogEventOnly("shader_module_first_use_delay_ns",
+      LogEventOnly("shader_module_first_use_slack_ns",
                    performancelayers::CsvCat(ShaderHashToString(hash),
-                                             first_use_delay_ns));
+                                             first_use_slack_ns));
     }
   }
 
  private:
   mutable absl::Mutex shader_module_usage_lock_;
   // Map from  shader module handles to their usage info.
-  absl::flat_hash_map<VkShaderModule, ShaderModuleDelay> shader_module_to_usage_
+  absl::flat_hash_map<VkShaderModule, ShaderModuleSlack> shader_module_to_usage_
       ABSL_GUARDED_BY(shader_module_usage_lock_);
 };
 
@@ -231,7 +231,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
                                      shader_module);
 
   if (res.result == VK_SUCCESS) {
-    layer_data->RecordShaderModuleCreation(*shader_module, res.create_start);
+    layer_data->RecordShaderModuleCreation(*shader_module, res.create_end);
     const int64_t create_time_ns =
         absl::ToInt64Nanoseconds(res.create_end - res.create_start);
     layer_data->LogEventOnly(
