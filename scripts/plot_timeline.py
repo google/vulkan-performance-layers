@@ -33,8 +33,8 @@ import matplotlib
 matplotlib.use('Agg') # Allows to work without X dispaly
 import matplotlib.pyplot as plt
 import numpy as np
-import os.path
 import sys
+import pandas as pd
 
 nanos_per_second = 10**9
 nanos_per_milli = 10**6
@@ -45,28 +45,28 @@ def get_frames_per_second(frame_present_events):
     (xs, ys, states). For each second xs[i], ys[i] represents frames elapsed in
     that second, and states[i] state in that second.
     """
-    first_second = frame_present_events[0][0] // nanos_per_second
-    last_second = int(np.ceil(frame_present_events[-1][0] / nanos_per_second))
-    duration_seconds = last_second - first_second + 1
-    xs = np.arange(first_second, last_second + 1)
-    ys = np.zeros(duration_seconds)
-    states = np.zeros(duration_seconds, dtype=np.int32)
+    num_events = len(frame_present_events)
+    df = pd.DataFrame({'V': [int(e[2]) for e in frame_present_events]},
+                      index = [pd.Timedelta(int(e[0])) for e in frame_present_events])
+    fps = list(df.rolling('1s').count()['V'])
+    assert len(fps) == num_events
 
-    for event in frame_present_events:
+    xs = np.zeros(num_events)
+    ys = np.zeros(num_events)
+    states = np.zeros(num_events, dtype=np.int32)
+
+    for i, event in enumerate(frame_present_events):
         timepoint, _frame_time, state = event[0], int(event[1]), int(event[2])
-        elapsed_seconds = timepoint // nanos_per_second
-        idx = elapsed_seconds - first_second
-        ys[idx] += 1
-        states[idx] = state
-
-    if ys[-1] == 0:
-        return xs[:-1], ys[:-1], states[:-1]
+        elapsed_seconds = timepoint / nanos_per_second
+        xs[i] = elapsed_seconds
+        ys[i] = fps[i]
+        states[i] = state
 
     return xs, ys, states
 
 def split_by_state(xs, ys, states):
     """
-    Splits the results get_frame_per_second into a list of continuos line segments,
+    Splits the results get_frame_per_second into a list of continuous line segments,
     divided by state. This is to plot multiple line segments with different color for
     each segment.
     """
@@ -106,7 +106,7 @@ def plot_frames_per_second(ax, events_by_type):
         return
 
     fps_x, fps_y, states = get_frames_per_second(events_by_type['frame_present'])
-    for i, (state, xs, ys) in enumerate(split_by_state(fps_x, fps_y, states)):
+    for state, xs, ys in split_by_state(fps_x, fps_y, states):
         ax.plot(xs, ys, color=plt.cm.tab10(state), label=f'FPS in state {state}')
 
     ax.legend(loc='upper right')
@@ -116,13 +116,13 @@ def plot_pipeline_creations(ax, events_by_type):
     ax.set_ylabel('Creation Time [ms]')
     max_creation_time_millis = 0
 
-    if 'create_graphics_pipeline' in events_by_type:
-        xs, ys = get_pipeline_creation_times(events_by_type['create_graphics_pipeline'])
+    if 'create_graphics_pipelines' in events_by_type:
+        xs, ys = get_pipeline_creation_times(events_by_type['create_graphics_pipelines'])
         ax.scatter(xs, ys, s=3, color=plt.cm.tab10(8), label='Create Graphics Pipelines')
         max_creation_time_millis = max(max_creation_time_millis, max(ys))
 
-    if 'create_compute_pipeline' in events_by_type:
-        xs, ys = get_pipeline_creation_times(events_by_type['create_compute_pipeline'])
+    if 'create_compute_pipelines' in events_by_type:
+        xs, ys = get_pipeline_creation_times(events_by_type['create_compute_pipelines'])
         ax.scatter(xs, ys, s=3, color=plt.cm.tab10(9), label='Create Compute Pipelines')
         max_creation_time_millis = max(max_creation_time_millis, max(ys))
 
@@ -184,7 +184,7 @@ def main():
 
     # Set all subplots have the same scale to make all plots align horizontally and vertically.
     for fps_ax, creation_ax in zip(axs, right_axs):
-        max_fps = 80
+        max_fps = 100
         fps_ax.set_ylim([0, max_fps])
         fps_ax.set_yticks(np.arange(0, max_fps, 5))
         fps_ax.set_xlim([0, max_duration_seconds])
