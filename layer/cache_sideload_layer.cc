@@ -35,6 +35,7 @@ class CacheSideloadLayerData : public LayerData {
   }
 
   VkPipelineCache GetImplicitDeviceCache(VkDevice) const;
+  void RemoveImplicitDeviceCache(VkDevice);
   VkPipelineCache CreateImplicitDeviceCache(
       VkDevice device, const VkAllocationCallbacks* alloc_callbacks,
       absl::Span<const uint8_t> initial_data);
@@ -60,6 +61,11 @@ VkPipelineCache CacheSideloadLayerData::GetImplicitDeviceCache(
     return it->second;
 
   return nullptr;
+}
+
+void CacheSideloadLayerData::RemoveImplicitDeviceCache(VkDevice device) {
+  absl::MutexLock lock(&device_to_implicit_cache_handle_lock_);
+  device_to_implicit_cache_handle_.erase(device);
 }
 
 VkPipelineCache CacheSideloadLayerData::CreateImplicitDeviceCache(
@@ -198,8 +204,8 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(void, DestroyInstance,
   performancelayers::CacheSideloadLayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
+  next_proc(instance, allocator);
 }
 
 // Override for vkCreateInstance. Creates the dispatch table for this instance
@@ -336,16 +342,47 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(VkResult, GetPipelineCacheData,
   return next_proc(device, cache, data_size, data_out);
 }
 
+// Override for vkDestroyPipelineCache. Checks that application does destroy
+// an implicit device pipeline cache.
+SPL_CACHE_SIDELOAD_LAYER_FUNC(void, DestroyPipelineCache,
+                              (VkDevice device, VkPipelineCache cache,
+                               const VkAllocationCallbacks* allocator)) {
+  assert(cache &&
+         "According to the spec, pipeline cache must be a valid handle.");
+
+  performancelayers::CacheSideloadLayerData* layer_data = GetLayerData();
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::DestroyPipelineCache);
+
+  if (cache == layer_data->GetImplicitDeviceCache(device)) {
+    SPL_LOG(ERROR)
+        << "Application unexpectedly passed a handle to an implicit "
+           "pipeline cache managed by the Pipeline Cache Sideload layer";
+    return;
+  }
+
+  return next_proc(device, cache, allocator);
+}
+
 // Override for vkDestroyDevice. Removes the dispatch table for the device from
 // the layer data.
 SPL_CACHE_SIDELOAD_LAYER_FUNC(void, DestroyDevice,
                               (VkDevice device,
                                const VkAllocationCallbacks* allocator)) {
   performancelayers::CacheSideloadLayerData* layer_data = GetLayerData();
+
+  // Destroy all layer objects created for this device.
+  if (VkPipelineCache cache = layer_data->GetImplicitDeviceCache(device)) {
+    layer_data->RemoveImplicitDeviceCache(device);
+    auto destroy_pc_proc = layer_data->GetNextDeviceProcAddr(
+        device, &VkLayerDispatchTable::DestroyPipelineCache);
+    destroy_pc_proc(device, cache, allocator);
+  }
+
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
+  next_proc(device, allocator);
 }
 
 // Override for vkCreateDevice. Builds the dispatch table for the new device
@@ -363,6 +400,7 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(VkResult, CreateDevice,
     // Get the next layer's instance of the device functions we will override.
     SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
     SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyPipelineCache);
     SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreatePipelineCache);
