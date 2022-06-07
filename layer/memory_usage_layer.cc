@@ -133,8 +133,8 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyInstance,
   performancelayers::LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
-  next_proc(instance, allocator);
   layer_data->RemoveInstance(instance);
+  next_proc(instance, allocator);
 }
 
 // Override for vkCreateInstance.  Creates the dispatch table for this instance
@@ -175,8 +175,8 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
-  next_proc(device, allocator);
   layer_data->RemoveDevice(device);
+  next_proc(device, allocator);
 }
 
 // Override for vkQueuePresentKHR. Used to log memory usage once per frame.
