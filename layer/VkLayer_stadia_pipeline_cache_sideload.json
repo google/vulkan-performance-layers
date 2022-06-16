@@ -5,7 +5,7 @@
     "name": "VK_LAYER_STADIA_pipeline_cache_sideload",
     "type": "GLOBAL",
     "library_path": "libVkLayer_stadia_pipeline_cache_sideload.so",
-    "api_version": "1.1.74",
+    "api_version": "1.3.216",
     "implementation_version": "1",
     "description": "Sideloads Vulkan Pipeline Cache files.",
     "functions": {
