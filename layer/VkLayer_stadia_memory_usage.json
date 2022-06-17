@@ -5,7 +5,7 @@
     "name": "VK_LAYER_STADIA_memory_usage",
     "type": "GLOBAL",
     "library_path": "libVkLayer_stadia_memory_usage.so",
-    "api_version": "1.1.74",
+    "api_version": "1.3.216",
     "implementation_version": "1",
     "description": "Measures the device memory usage of a Vulkan aplication.",
     "functions": {
