@@ -43,7 +43,7 @@ cmake .. \
     && ninja install
 ```
 
-`CMAKE_BUILD_TYPE` options are: `Release, Debug, RelWithDebInfo, MinSizeRel`
+`CMAKE_BUILD_TYPE` options are: `Release`, `Debug`, `RelWithDebInfo`, `MinSizeRel`.
 
 NOTE: `VULKAN_HEADERS_INSTALL_DIR` and `VULKAN_LOADER_GENERATED_DIR` must be absolute paths.
 
@@ -62,20 +62,23 @@ NOTE: `VULKAN_LOADER_GENERATED_DIR` should be the directory that contains `vk_la
 See [docker/build.Dockerfile](docker/build.Dockerfile) for detailed Ubuntu build instructions.
 
 ## Enabling the layers:
-To enable the performance layers, set these environent variables:
+For operating systems other than Linux, see: https://vulkan.lunarg.com/doc/view/1.3.211.0/linux/layer_configuration.html or the documentation from your Vulkan SDK vendor.
+ 
+### Linux:
+There are many ways to enable Vulkan layers, and we present one way that works on Linux. For a more comprehensive Vulkan layer configuration tutorial, see https://vulkan.lunarg.com/doc/view/1.3.211.0/linux/layer_configuration.html.
 
 `$LD_LIBRARY_PATH`: Need to append the directory containing the .so files of performance layers to the `$LD_LIBRARY_PATH`.
 ```
 export LD_LIBRARY_PATH=<path-with-layers.so>:$LD_LIBRARY_PATH
 ```
-`$VK_INSTANCE_LAYERS`: Specify which layers from the following set to enable.
+`$VK_INSTANCE_LAYERS`: Specify which of the following layers to enable.
 1. VK_LAYER_STADIA_pipeline_compile_time
-2. VK_LAYER_STADIA_pipeline_runtime
-3. VK_LAYER_STADIA_pipeline_cache_sideload
-4. VK_LAYER_STADIA_pipeline_memory_usage
-5. VK_LAYER_STADIA_pipeline_frame_time
+1. VK_LAYER_STADIA_pipeline_runtime
+1. VK_LAYER_STADIA_pipeline_cache_sideload
+1. VK_LAYER_STADIA_pipeline_memory_usage
+1. VK_LAYER_STADIA_pipeline_frame_time
 
-To enable multiple layers, you can separated them using colon. The following command enables compile time and runtime layers. 
+To enable multiple layers, separate them with colons. The following command enables both compile time and runtime layers. 
 ```
 export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time:VK_LAYER_STADIA_pipeline_runtime
 ```
@@ -84,15 +87,16 @@ export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time:VK_LAYER_STADIA_
 ``` 
 export VK_LAYER_PATH=<path-with-layer-json>
 ```
-`VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE`: Path to the file in which the logs will be written. 
+
+### Path to the log files: 
+Each layer writes its results in a specific log file. You can determine the path to the log file for each layer by setting its corresponding environment variable.
+
 ```
-export VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE=<log-file-path>
+export VK_COMPILE_TIME_LOG=<log-file-path>
 ```
 
-To check whether the layers are enabled, you can run a sample vulkan application (like `vkcube`) and check the log file specified in the `$VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE`.
+To check if the layers are enabled, you can run a sample Vulkan application (such as `vkcube`) and look for the generated layer log files, or check the [Vulkan loader logs](https://github.com/KhronosGroup/Vulkan-Loader/blob/master/docs/LoaderInterfaceArchitecture.md#table-of-debug-environment-variables).
 
-## Useful links
-[This links](https://vulkan.lunarg.com/doc/view/1.3.211.0/linux/layer_configuration.html) is also useful regarding the layer configuration.
 ## Disclaimer
 
 This is not an officially supported Google product. Support and/or new releases may be limited.
