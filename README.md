@@ -43,6 +43,8 @@ cmake .. \
     && ninja install
 ```
 
+`CMAKE_BUILD_TYPE` options are: `Release, Debug, RelWithDebInfo, MinSizeRel`
+
 NOTE: `VULKAN_HEADERS_INSTALL_DIR` and `VULKAN_LOADER_GENERATED_DIR` must be absolute paths.
 
 NOTE: `VULKAN_HEADERS_INSTALL_DIR` must be set to the installation directory of Vulkan-Headers. For example, if you build directory is `VULKAN_HEADERS_BUILD` and your build commands were:
@@ -59,6 +61,38 @@ NOTE: `VULKAN_LOADER_GENERATED_DIR` should be the directory that contains `vk_la
 
 See [docker/build.Dockerfile](docker/build.Dockerfile) for detailed Ubuntu build instructions.
 
+## Enabling the layers:
+To enable the performance layers, set these environent variables:
+
+`$LD_LIBRARY_PATH`: Need to append the directory containing the .so files of performance layers to the `$LD_LIBRARY_PATH`.
+```
+export LD_LIBRARY_PATH=<path-with-layers.so>:$LD_LIBRARY_PATH
+```
+`$VK_INSTANCE_LAYERS`: Specify which layers from the following set to enable.
+1. VK_LAYER_STADIA_pipeline_compile_time
+2. VK_LAYER_STADIA_pipeline_runtime
+3. VK_LAYER_STADIA_pipeline_cache_sideload
+4. VK_LAYER_STADIA_pipeline_memory_usage
+5. VK_LAYER_STADIA_pipeline_frame_time
+
+To enable multiple layers, you can separated them using colon. The following command enables compile time and runtime layers. 
+```
+export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time:VK_LAYER_STADIA_pipeline_runtime
+```
+
+`VK_LAYER_PATH`: Path to the directory containing the json files with the name of the layers. 
+``` 
+export VK_LAYER_PATH=<path-with-layer-json>
+```
+`VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE`: Path to the file in which the logs will be written. 
+```
+export VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE=<log-file-path>
+```
+
+To check whether the layers are enabled, you can run a sample vulkan application (like `vkcube`) and check the log file specified in the `$VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE`.
+
+## Useful links
+[This links](https://vulkan.lunarg.com/doc/view/1.3.211.0/linux/layer_configuration.html) is also useful regarding the layer configuration.
 ## Disclaimer
 
 This is not an officially supported Google product. Support and/or new releases may be limited.
