@@ -240,6 +240,14 @@ class LayerData {
     return proc_addr;
   }
 
+  // Removes a previously created shader module from the LayerData. This is
+  // called while destroying the shader module.
+  void EraseShader(VkShaderModule shader_module) {
+    absl::MutexLock lock(&shader_hash_lock_);
+    assert(shader_hash_map_.contains(shader_module));
+    shader_hash_map_.erase(shader_module);
+  }
+
   // Records the hash of |code|, whose size is |size|, and associates it with
   // |shader_module|. This must be called before you can call |GetShaderHash|
   // with |shader_module|. Returns the calculated hash value.
@@ -352,6 +360,11 @@ class LayerData {
   ShaderModuleCreateResult CreateShaderModule(
       VkDevice device, const VkShaderModuleCreateInfo* create_info,
       const VkAllocationCallbacks* allocator, VkShaderModule* shader_module);
+
+  // Removes the shader module by calling |DestroyShaderModule| for the next
+  // layer. Also, removes the record of shader module from the LayerData.
+  void DestroyShaderModule(VkDevice device, VkShaderModule shader_module,
+                           const VkAllocationCallbacks* allocator);
 
  private:
   mutable absl::Mutex instance_dispatch_lock_;
