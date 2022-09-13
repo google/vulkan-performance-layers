@@ -269,4 +269,13 @@ LayerData::ShaderModuleCreateResult LayerData::CreateShaderModule(
       HashShader(*shader_module, create_info->pCode, create_info->codeSize);
   return {result, hash, start, end};
 }
+
+void LayerData::DestroyShaderModule(VkDevice device,
+                                    VkShaderModule shader_module,
+                                    const VkAllocationCallbacks* allocator) {
+  auto next_proc =
+      GetNextDeviceProcAddr(device, &VkLayerDispatchTable::DestroyShaderModule);
+  EraseShader(shader_module);
+  next_proc(device, shader_module, allocator);
+}
 }  // namespace performancelayers

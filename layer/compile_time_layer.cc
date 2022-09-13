@@ -242,7 +242,15 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
   return res.result;
 }
 
-// Override for vkDestroyDevice.  Removes the dispatch table for the device from
+// Override for vkDestroyShaderModule. Erases the shader module from the layer
+// data.
+SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyShaderModule,
+                            (VkDevice device, VkShaderModule shader_module,
+                             const VkAllocationCallbacks* allocator)) {
+  return GetLayerData()->DestroyShaderModule(device, shader_module, allocator);
+}
+
+// Override for vkDestroyDevice. Removes the dispatch table for the device from
 // the layer data.
 SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
                             (VkDevice device,
@@ -254,7 +262,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(void, DestroyDevice,
   next_proc(device, allocator);
 }
 
-// Override for vkCreateDevice.  Builds the dispatch table for the new device
+// Override for vkCreateDevice. Builds the dispatch table for the new device
 // and add it to the layer data.
 SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateDevice,
                             (VkPhysicalDevice physical_device,
@@ -270,6 +278,8 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyShaderModule);
+
     return dispatch_table;
   };
 

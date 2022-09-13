@@ -337,6 +337,14 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateShaderModule,
       .result;
 }
 
+// Override for vkDestroyShaderModule. Erases the shader module from
+// the layer data.
+SPL_RUNTIME_LAYER_FUNC(void, DestroyShaderModule,
+                       (VkDevice device, VkShaderModule shader_module,
+                        const VkAllocationCallbacks* allocator)) {
+  return GetLayerData()->DestroyShaderModule(device, shader_module, allocator);
+}
+
 // Override for vkDestroyDevice.  Removes the dispatch table for the device from
 // the layer data.
 SPL_RUNTIME_LAYER_FUNC(void, DestroyDevice,
@@ -366,6 +374,7 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateDevice,
     SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
     SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyShaderModule);
     SPL_DISPATCH_DEVICE_FUNC(CmdBindPipeline);
     SPL_DISPATCH_DEVICE_FUNC(CmdDispatch);
     SPL_DISPATCH_DEVICE_FUNC(CmdDraw);
