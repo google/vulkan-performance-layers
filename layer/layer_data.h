@@ -244,8 +244,8 @@ class LayerData {
   // called while destroying the shader module.
   void EraseShader(VkShaderModule shader_module) {
     absl::MutexLock lock(&shader_hash_lock_);
-    assert(shader_hash_map_.contains(shader_module));
-    shader_hash_map_.erase(shader_module);
+    assert(shader_to_code_hash_.contains(shader_module));
+    shader_to_code_hash_.erase(shader_module);
   }
 
   // Records the hash of |code|, whose size is |size|, and associates it with
@@ -256,15 +256,15 @@ class LayerData {
     const char* c = reinterpret_cast<const char*>(code);
     uint64_t hash_value = util::Fingerprint64(c, size);
     absl::MutexLock lock(&shader_hash_lock_);
-    shader_hash_map_.insert_or_assign(shader_module, hash_value);
+    shader_to_code_hash_.insert_or_assign(shader_module, hash_value);
     return hash_value;
   }
 
   // Return the hash associated with |shader_module|.
   uint64_t GetShaderHash(VkShaderModule shader_module) const {
     absl::MutexLock lock(&shader_hash_lock_);
-    assert(shader_hash_map_.count(shader_module) != 0);
-    return shader_hash_map_.at(shader_module);
+    assert(shader_to_code_hash_.count(shader_module) != 0);
+    return shader_to_code_hash_.at(shader_module);
   }
 
   // Computes and caches the hash of the compute pipeline |pipeline| that was
@@ -384,7 +384,7 @@ class LayerData {
 
   mutable absl::Mutex shader_hash_lock_;
   // The map from a shader module to the result of its hash.
-  absl::flat_hash_map<VkShaderModule, uint64_t> shader_hash_map_
+  absl::flat_hash_map<VkShaderModule, uint64_t> shader_to_code_hash_
       ABSL_GUARDED_BY(shader_hash_lock_);
 
   mutable absl::Mutex pipeline_hash_lock_;
