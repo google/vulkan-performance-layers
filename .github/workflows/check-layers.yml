@@ -7,14 +7,20 @@ on:
 jobs:
   build:
     name: Check (${{ matrix.config }}, ${{ matrix.compiler }}, ${{ matrix.generator }})
-    runs-on: ${{ matrix.host-os }}
+    runs-on: "ubuntu-latest"
     strategy:
       fail-fast: false
       matrix:
-        host-os:    ["ubuntu-latest"]
         config:     [Debug, Release]
-        compiler:   [clang, gcc]
-        generator:  ["Ninja", "Unix Makefiles"]
+        compiler:   [clang]
+        generator:  ["Ninja"]
+        include:
+        - config: Release
+          compiler: gcc
+          generator: "Ninja"
+        - config: Debug
+          compiler: gcc
+          generator: "Unix Makefiles"
     steps:
       - name: Checkout
         run: |
