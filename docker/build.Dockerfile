@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2020-2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,17 +31,28 @@ ARG GENERATOR
 RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
     && apt-get update \
     && apt-get install -yqq --no-install-recommends \
-      build-essential gcc g++ clang-11 ninja-build cmake binutils-gold \
-      libc++-11-dev libc++abi-11-dev \
-      python python-distutils-extra python3 python3-distutils \
-      git vim-tiny \
-      libglm-dev libxcb-dri3-0 libxcb-present0 libpciaccess0 \
-	    libpng-dev libxcb-keysyms1-dev libxcb-dri3-dev libx11-dev \
-      libmirclient-dev libwayland-dev libxrandr-dev libxcb-ewmh-dev \
+       build-essential pkg-config ninja-build \
+       gcc g++ binutils-gold \
+       llvm-11 clang-11 clang-tidy-12 libclang-common-11-dev lld-11 \
+       python python3 python3-distutils python3-pip \
+       libssl-dev libx11-dev libxcb1-dev x11proto-dri2-dev libxcb-dri3-dev \
+       libxcb-dri2-0-dev lib32z1-dev libxcb-present-dev libxcb-xinerama0 libxshmfence-dev libxrandr-dev \
+       libwayland-dev \
+       git curl wget openssh-client \
+       gpg gpg-agent \
+    && wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add - \
+    && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.216-bionic.list https://packages.lunarg.com/vulkan/1.3.216/lunarg-vulkan-1.3.216-bionic.list \
+    && apt-get update \
+    && apt-get install -yqq --no-install-recommends \
+    vulkan-sdk x11-xserver-utils libvulkan-dev libvulkan1 xvfb mesa-vulkan-drivers \
     && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10 \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-11 10 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-11 10
+    && python3 -m pip install --no-cache-dir --upgrade pip \
+    && python3 -m pip install --no-cache-dir --upgrade cmake \
+    && for tool in clang clang++ llvm-cov llvm-profdata llvm-symbolizer lld ld.lld ; do \
+         update-alternatives --install /usr/bin/"$tool" "$tool" /usr/bin/"$tool"-11 10 ; \
+        done \
+    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-12 10 \
+    && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10
 
 COPY . /performance-layers
 
@@ -76,3 +87,5 @@ RUN  CXX_COMPILER="g++" \
     && cmake --build . --target check \
     && cmake --build . --target install
 
+# Test Vulkan SDK
+RUN xvfb-run vkcube --c 1000 && echo Done!
