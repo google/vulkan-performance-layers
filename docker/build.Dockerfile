@@ -87,12 +87,12 @@ RUN  CXX_COMPILER="g++" \
     && cmake --build . --target check \
     && cmake --build . --target install
 
-# Enable perfomance layers and test with `vkcube`
-RUN export LD_LIBRARY_PATH=/performance-layers/build:$LD_LIBRARY_PATH \ 
+# Enable perfomance layers and test with `vkcube`.
+RUN export LD_LIBRARY_PATH=/performance-layers/build:$LD_LIBRARY_PATH \
     && export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time \
     && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime \
     && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_cache_sideload \
-    && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_memory_usage \
-    && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_frame_time \
+    && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_memory_usage \
+    && export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_frame_time \
     && export VK_LAYER_PATH=/performance-layers/layer \
-    && xvfb-run vkcube --c 1000 && echo Done!
+    && xvfb-run vkcube --c 100 && echo Done!
