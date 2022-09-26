@@ -55,3 +55,7 @@ echo "Run is finished successfully!"
 for file in "${output_files[@]}"; do
   check_layer_log "${file}"
 done
+
+# Check that log file's contents matches what is expected.
+FileCheck test/check_compile_time_log.txt --input-file \
+  "${OUTPUT_DIR}"/compile_time.csv 
