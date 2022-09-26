@@ -1,0 +1,4 @@
+; Checks the pattern of compile time log file. Makes sure the header
+; and the data rows' format are as expected.
+; CHECK-LABEL: Pipeline,Compile Time (ns)
+; CHECK-NEXT: "[{{0x[a-zA-Z0-9]+,0x[a-zA-Z0-9]+}}]",{{[0-9]+}}

@@ -21,7 +21,7 @@
 #                   --build-arg COMPILER=clang                   \
 #                   --build-arg GENERATOR=Ninja
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-c"]
 
@@ -33,30 +33,21 @@ ARG GENERATOR
 RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
     && apt-get update \
     && apt-get install -yqq --no-install-recommends \
-       build-essential pkg-config ninja-build \
-       gcc g++ binutils-gold \
-       llvm-11 clang-11 clang-tidy-12 libclang-common-11-dev lld-11 \
-       python python3 python3-distutils python3-pip \
-       libssl-dev libx11-dev libxcb1-dev x11proto-dri2-dev libxcb-dri3-dev \
-       libxcb-dri2-0-dev lib32z1-dev libxcb-present-dev libxcb-xinerama0 libxshmfence-dev libxrandr-dev \
-       libwayland-dev \
-       git curl wget openssh-client \
-       gpg gpg-agent \
+       build-essential cmake ninja-build \
+       gcc g++ python3 \
+       llvm-14 llvm-14-dev clang-14 clang-tidy-14 lld-14 \
+       xvfb mesa-vulkan-drivers \
+       git wget openssh-client gpg gpg-agent ca-certificates \
     && wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add - \
     && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.216-bionic.list https://packages.lunarg.com/vulkan/1.3.216/lunarg-vulkan-1.3.216-bionic.list \
     && apt-get update \
     && apt-get install -yqq --no-install-recommends \
-    vulkan-sdk x11-xserver-utils libvulkan-dev libvulkan1 xvfb mesa-vulkan-drivers \
+       vulkan-sdk libvulkan-dev libvulkan1 \
     && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --no-cache-dir --upgrade pip \
-    && python3 -m pip install --no-cache-dir --upgrade cmake \
-    && for tool in clang clang++ llvm-cov llvm-profdata llvm-symbolizer lld ld.lld ; do \
-         update-alternatives --install /usr/bin/"$tool" "$tool" /usr/bin/"$tool"-11 10 ; \
+    && for tool in clang clang++ clang-tidy llvm-cov llvm-profdata llvm-symbolizer lld ld.lld FileCheck ; do \
+         update-alternatives --install /usr/bin/"$tool" "$tool" /usr/bin/"$tool"-14 10 ; \
         done \
-    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-12 10 \
-    && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10
-
-COPY . /performance-layers
+    && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld 10
 
 # Get all dependencies.
 WORKDIR /dependencies
@@ -71,13 +62,15 @@ RUN git clone https://github.com/KhronosGroup/Vulkan-Headers.git \
     && cmake --build . \
     && cmake --build . --target install
 
+COPY . /performance-layers
+
 # Build performance layers.
-WORKDIR /performance-layers/build
+WORKDIR /build
 RUN  CXX_COMPILER="g++" \
      && if [ "$COMPILER" = "clang" ] ; then \
           CXX_COMPILER="clang++" ; \
         fi \
-     && cmake .. \
+     && cmake /performance-layers \
       -G "$GENERATOR" \
       -DCMAKE_C_COMPILER="$COMPILER" \
       -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
@@ -90,5 +83,4 @@ RUN  CXX_COMPILER="g++" \
     && cmake --build . --target install
 
 # Enable and test the performance layers.
-WORKDIR /performance-layers/docker
-RUN ./test_performance_layers.sh /performance-layers/build
+RUN timeout 20s /performance-layers/docker/test_performance_layers.sh /build
