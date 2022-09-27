@@ -7,13 +7,17 @@
 
 set -euo pipefail
 
-# Create a temp output directory for log files. 
-readonly OUTPUT_DIR="$(mktemp -d)"
+readonly SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" > /dev/null 2>&1 && pwd )"
+readonly PROJECT_ROOT_DIR="${SCRIPT_DIR}/.."
+
 readonly INSTALL_DIR="$1"
 readonly LAYER_DIR="${INSTALL_DIR}/run/layer"
 
+# Create a temp output directory for log files. 
+readonly OUTPUT_DIR="$(mktemp -d)"
+
 declare -a output_files
-output_files=("compile_time.csv" "run_time.csv" "memory_usage.csv" 
+output_files=("compile_time.csv" "memory_usage.csv" 
               "frame_time.csv" "events.log")
 
 #######################################
@@ -36,7 +40,9 @@ check_layer_log() {
 
 export LD_LIBRARY_PATH="${INSTALL_DIR}":"${LD_LIBRARY_PATH-}"
 export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time
-export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime
+# FIXME(https://github.com/googlestadia/performance-layers/issues/71): Fix
+#       hangs with the runtime layer and re-enable it.
+# export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_frame_time
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_memory_usage
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_cache_sideload
@@ -49,7 +55,7 @@ export VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE="${OUTPUT_DIR}"/events.log
 
 # Test if an application can run with performance layers enabled.
 xvfb-run vkcube --c 100
-echo "Run is finished successfully!"
+echo "vkcube finished successfully!"
 
 # Check if each enabled layer produced its log file.
 for file in "${output_files[@]}"; do
@@ -57,5 +63,5 @@ for file in "${output_files[@]}"; do
 done
 
 # Check that log file's contents matches what is expected.
-FileCheck test/check_compile_time_log.txt --input-file \
+FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" --input-file \
   "${OUTPUT_DIR}"/compile_time.csv 
