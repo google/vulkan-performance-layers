@@ -35,7 +35,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
     && apt-get install -yqq --no-install-recommends \
        build-essential pkg-config ninja-build \
        gcc g++ binutils-gold \
-       llvm-11 clang-11 clang-tidy-12 libclang-common-11-dev lld-11 \
+       llvm-11 clang-11 clang-tidy-12 libclang-common-11-dev lld-11 llvm-11-dev \
        python python3 python3-distutils python3-pip \
        libssl-dev libx11-dev libxcb1-dev x11proto-dri2-dev libxcb-dri3-dev \
        libxcb-dri2-0-dev lib32z1-dev libxcb-present-dev libxcb-xinerama0 libxshmfence-dev libxrandr-dev \
@@ -50,13 +50,11 @@ RUN export DEBIAN_FRONTEND=noninteractive && export TZ=America/New_York \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --no-cache-dir --upgrade pip \
     && python3 -m pip install --no-cache-dir --upgrade cmake \
-    && for tool in clang clang++ llvm-cov llvm-profdata llvm-symbolizer lld ld.lld ; do \
+    && for tool in clang clang++ llvm-cov llvm-profdata llvm-symbolizer lld ld.lld FileCheck; do \
          update-alternatives --install /usr/bin/"$tool" "$tool" /usr/bin/"$tool"-11 10 ; \
         done \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-12 10 \
     && update-alternatives --install /usr/bin/ld ld /usr/bin/ld.gold 10
-
-COPY . /performance-layers
 
 # Get all dependencies.
 WORKDIR /dependencies
@@ -70,6 +68,8 @@ RUN git clone https://github.com/KhronosGroup/Vulkan-Headers.git \
          -DCMAKE_INSTALL_PREFIX=run \
     && cmake --build . \
     && cmake --build . --target install
+
+COPY . /performance-layers
 
 # Build performance layers.
 WORKDIR /performance-layers/build
@@ -90,5 +90,5 @@ RUN  CXX_COMPILER="g++" \
     && cmake --build . --target install
 
 # Enable and test the performance layers.
-WORKDIR /performance-layers/docker
-RUN ./test_performance_layers.sh /performance-layers/build
+WORKDIR /performance-layers/
+RUN ./docker/test_performance_layers.sh /performance-layers/build
