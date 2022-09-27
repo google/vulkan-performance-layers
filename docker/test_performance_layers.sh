@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Enables the performance layers by setting the evironment variables.
-# Executes vkcube and makes sure it runs without fault when performance layers 
+# Executes vkcube and makes sure it runs without fault when performance layers
 # are enabled.
-# Tests if each layer writes to its corresponding output file. 
+# Tests if each layer writes to its corresponding output file.
 
 set -euo pipefail
 
@@ -13,11 +13,11 @@ readonly PROJECT_ROOT_DIR="${SCRIPT_DIR}/.."
 readonly INSTALL_DIR="$1"
 readonly LAYER_DIR="${INSTALL_DIR}/run/layer"
 
-# Create a temp output directory for log files. 
+# Create a temp output directory for log files.
 readonly OUTPUT_DIR="$(mktemp -d)"
 
 declare -a output_files
-output_files=("compile_time.csv" "memory_usage.csv" 
+output_files=("compile_time.csv" "memory_usage.csv"
               "frame_time.csv" "events.log")
 
 #######################################
@@ -33,7 +33,7 @@ check_layer_log() {
   local file_name="$1"
 
   if [[ $(wc -l <"${OUTPUT_DIR}"/"${file_name}") -lt 2 ]]; then
-    echo "Error: ${file_name} has not been populated properly." 
+    echo "Error: ${file_name} has not been populated properly."
     exit 1
   fi
 }
@@ -64,4 +64,4 @@ done
 
 # Check that log file's contents matches what is expected.
 FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" --input-file \
-  "${OUTPUT_DIR}"/compile_time.csv 
+  "${OUTPUT_DIR}"/compile_time.csv
