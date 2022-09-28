@@ -68,3 +68,6 @@ FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" --input-file \
 
 FileCheck "${PROJECT_ROOT_DIR}/test/check_memory_usage_log.txt" --input-file \
   "${OUTPUT_DIR}"/memory_usage.csv
+
+FileCheck "${PROJECT_ROOT_DIR}/test/check_frame_time_log.txt" --input-file \
+  "${OUTPUT_DIR}"/frame_time.csv

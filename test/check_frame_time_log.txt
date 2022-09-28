@@ -1,0 +1,5 @@
+; Checks the pattern of frame time log file. Makes sure the header
+; and the data rows' format, and the data rows count are as expected.
+; CHECK-LABEL: Frame Time (ns),Benchmark State
+; CHECK-COUNT-99: {{[0-9]+}},{{[0-9]+}}
+; CHECK-NOT: {{[0-9]+}},{{[0-9]+}}
