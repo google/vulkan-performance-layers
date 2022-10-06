@@ -27,7 +27,6 @@ namespace {
 using namespace performancelayers;
 namespace fs = std::filesystem;
 
-namespace {
 // Helper struct to create temporary files and fill them with test data.
 struct TmpFile {
   TmpFile(const char* filename) {
@@ -54,7 +53,6 @@ struct TmpFile {
   fs::path path = "";
   FILE* file = nullptr;
 };
-}  // namespace
 
 TEST(InputBuffer, Placeholder) { ASSERT_TRUE(true); }
 
