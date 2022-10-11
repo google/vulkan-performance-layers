@@ -133,6 +133,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
 
 enable_testing()
 add_executable(layer_support_tests
+    units/event_log_tests.cc
     units/input_buffer_tests.cc
     units/log_scanner_tests.cc
 )
