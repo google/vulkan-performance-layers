@@ -83,6 +83,8 @@ class Event {
   Event(const char *name, LogLevel log_level)
       : name_(name), log_level_(log_level) {}
 
+  virtual ~Event() = default;
+
   // Each implementation of an `Event` contains attribute(s) and
   // overrides this function to return them.
   virtual const std::vector<Attribute *> &GetAttributes() = 0;
