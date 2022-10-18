@@ -4,7 +4,11 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 
 namespace {
 // Set of supported value types for an attribute.
@@ -174,7 +178,7 @@ std::string ValueToCSVString(const std::vector<int64_t> &values) {
 
 // Takes an `Event` instance as an input and generates a csv string containing
 // `event`'s name and attribute values.
-// TODO(miladhakimi): Differentiate addresses and other integers. Addresses
+// TODO(miladhakimi): Differentiate hashes and other integers. Hashes
 // should be displayed in hex.
 std::string EventToCSVString(Event &event) {
   const std::vector<Attribute *> &attributes = event.GetAttributes();
@@ -204,6 +208,119 @@ std::string EventToCSVString(Event &event) {
   }
   return csv_str.str();
 }
+
+// EventLogger base class
+//
+// EventLogger provides an abstraction for the concrete loggers that log the
+// events in various formats (CSV, Chrome Trace Event, etc). The `EventLogger`'s
+// methods can be called from multiple threads at the same time. Hence, they are
+// expected to be internally synchronized.
+class EventLogger {
+ public:
+  virtual ~EventLogger() = default;
+
+  // Converts an `Event` into a string and writes it to the output.
+  virtual void AddEvent(Event *event) = 0;
+
+  // This method is called exactly once before any events are added to denote
+  // that the log has started. For instance, in case of a CSV log, the CSV
+  // header is written when this function is called.
+  virtual void StartLog() = 0;
+
+  // This method is called exactly once to denote that the log is finished.
+  virtual void EndLog() = 0;
+
+  // Makes sure all the logs are written to the output.
+  virtual void Flush() = 0;
+};
+
+// FilterLogger is a wrapper around the `EventLogger` that filters the input
+// events based on a given log level.
+// Example:
+// ```C++
+// CSVLogger logger = ...;
+// FilterLogger filter(&logger, LogLevel::High);
+// ```
+class FilterLogger : public EventLogger {
+ public:
+  FilterLogger(EventLogger *logger, LogLevel log_level)
+      : logger_(logger), log_level_(log_level){};
+
+  void AddEvent(Event *event) override {
+    if (event->GetLogLevel() >= log_level_) logger_->AddEvent(event);
+  }
+
+  void StartLog() override { logger_->StartLog(); }
+
+  void EndLog() override { logger_->EndLog(); }
+
+  void Flush() override { logger_->Flush(); }
+
+ private:
+  EventLogger *logger_ = nullptr;
+  LogLevel log_level_ = LogLevel::Low;
+};
+
+// A subclass of `EventLogger` that forwards all events, start/end, and flushes
+// to all its children. Example: `
+// ```c++
+// BroadCastLogger({&event_logger1,&event_logger2});
+// ```
+class BroadcastLogger : public EventLogger {
+ public:
+  BroadcastLogger(std::vector<EventLogger *> loggers) : loggers_(loggers) {}
+
+  void AddEvent(Event *event) override {
+    for (EventLogger *logger : loggers_) logger->AddEvent(event);
+  }
+
+  void StartLog() override {
+    for (EventLogger *logger : loggers_) logger->StartLog();
+  }
+
+  void EndLog() override {
+    for (EventLogger *logger : loggers_) logger->EndLog();
+  }
+
+  void Flush() override {
+    for (EventLogger *logger : loggers_) logger->Flush();
+  }
+
+  const std::vector<EventLogger *> &GetLoggers() { return loggers_; }
+
+ private:
+  std::vector<EventLogger *> loggers_;
+};
+
+// A logger for testing `EventLogger`.
+//
+// Mocks the behavior of the virtual methods and provides getters to check if
+// it works as expected.
+class TestLogger : public EventLogger {
+ public:
+  void AddEvent(Event *event) override { events_.push_back(event); }
+
+  void StartLog() override { log_started_ = true; }
+
+  void EndLog() override { log_finished_ = true; }
+
+  void Flush() override { ++flush_count_; }
+
+  const std::vector<Event *> &GetEvents() { return events_; }
+
+  bool IsStarted() const { return log_started_; }
+
+  bool IsFinished() const { return log_finished_; }
+
+  size_t GetFlushCount() const { return flush_count_; }
+
+ private:
+  std::vector<Event *> events_;
+
+  bool log_started_ = false;
+  bool log_finished_ = false;
+  size_t flush_count_ = 0;
+};
 
 TEST(Event, AttributeCreation) {
   const int64_t timestamp_val = 1601314732230797664;
@@ -274,4 +391,99 @@ TEST(Event, CreateGraphicsPipelinesEventCreation) {
 
   EXPECT_EQ(EventToCSVString(pipeline_event), expected_str.str());
 }
+
+TEST(EventLogger, TestLoggerCreation) {
+  TestLogger test_logger;
+  EXPECT_FALSE(test_logger.IsStarted());
+  EXPECT_EQ(0, test_logger.GetFlushCount());
+  EXPECT_FALSE(test_logger.IsFinished());
+  EXPECT_THAT(test_logger.GetEvents(), IsEmpty());
+}
+
+TEST(EventLogger, TestLoggerFunctionCalls) {
+  VectorInt64Attr hashes("hashes", {2, 3});
+  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
+                                              hashes, 4, LogLevel::High);
+  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3, LogLevel::Low);
+  TestLogger test_logger;
+
+  test_logger.AddEvent(&pipeline_event);
+  test_logger.AddEvent(&compile_event);
+  EXPECT_THAT(test_logger.GetEvents(),
+              ElementsAre(&pipeline_event, &compile_event));
+
+  test_logger.StartLog();
+  EXPECT_TRUE(test_logger.IsStarted());
+
+  test_logger.Flush();
+  EXPECT_EQ(test_logger.GetFlushCount(), 1);
+
+  test_logger.EndLog();
+  EXPECT_TRUE(test_logger.IsFinished());
+}
+
+TEST(EventLogger, FilterLoggerInsert) {
+  VectorInt64Attr hashes("hashes", {2, 3});
+  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
+                                              hashes, 4, LogLevel::High);
+  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3, LogLevel::Low);
+  TestLogger test_logger;
+  FilterLogger filter(&test_logger, LogLevel::High);
+  filter.AddEvent(&pipeline_event);
+  filter.AddEvent(&compile_event);
+  EXPECT_THAT(test_logger.GetEvents(), ElementsAre(&pipeline_event));
+}
+
+TEST(EventLogger, BroadcastLoggerCreation) {
+  TestLogger test_logger1, test_logger2, test_logger3;
+  FilterLogger filter(&test_logger1, LogLevel::High);
+  BroadcastLogger broadcast1({&filter, &test_logger2});
+  BroadcastLogger broadcast2({&broadcast1, &test_logger3});
+  ASSERT_THAT(broadcast1.GetLoggers(), ElementsAre(&filter, &test_logger2));
+  ASSERT_THAT(broadcast2.GetLoggers(), ElementsAre(&broadcast1, &test_logger3));
+}
+
+TEST(EventLogger, BroadcastLoggerFunctionCalls) {
+  VectorInt64Attr hashes("hashes", {2, 3});
+  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
+                                              hashes, 4, LogLevel::High);
+  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3, LogLevel::Low);
+  TestLogger test_logger1, test_logger2, test_logger3;
+  FilterLogger filter(&test_logger1, LogLevel::High);
+  BroadcastLogger broadcast1({&filter, &test_logger2});
+  BroadcastLogger broadcast2({&broadcast1, &test_logger3});
+  broadcast1.AddEvent(&pipeline_event);
+  EXPECT_THAT(test_logger1.GetEvents(), ElementsAre(&pipeline_event));
+  EXPECT_THAT(test_logger2.GetEvents(), ElementsAre(&pipeline_event));
+
+  broadcast2.AddEvent(&compile_event);
+  EXPECT_THAT(test_logger1.GetEvents(), ElementsAre(&pipeline_event));
+  EXPECT_THAT(test_logger2.GetEvents(),
+              ElementsAre(&pipeline_event, &compile_event));
+  EXPECT_THAT(test_logger3.GetEvents(), ElementsAre(&compile_event));
+
+  broadcast1.StartLog();
+  EXPECT_TRUE(test_logger1.IsStarted());
+  EXPECT_TRUE(test_logger2.IsStarted());
+  broadcast2.StartLog();
+  EXPECT_TRUE(test_logger3.IsStarted());
+
+  broadcast1.Flush();
+  EXPECT_EQ(test_logger1.GetFlushCount(), 1);
+  EXPECT_EQ(test_logger2.GetFlushCount(), 1);
+  EXPECT_EQ(test_logger3.GetFlushCount(), 0);
+
+  broadcast2.Flush();
+  EXPECT_EQ(test_logger1.GetFlushCount(), 2);
+  EXPECT_EQ(test_logger2.GetFlushCount(), 2);
+  EXPECT_EQ(test_logger3.GetFlushCount(), 1);
+
+  broadcast1.EndLog();
+  EXPECT_TRUE(test_logger1.IsFinished());
+  EXPECT_TRUE(test_logger2.IsFinished());
+  EXPECT_FALSE(test_logger3.IsFinished());
+  broadcast2.EndLog();
+  EXPECT_TRUE(test_logger3.IsFinished());
+}
+
 }  // namespace
