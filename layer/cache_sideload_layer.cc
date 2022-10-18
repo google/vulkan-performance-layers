@@ -19,10 +19,10 @@
 #include <string_view>
 
 #include "absl/container/flat_hash_map.h"
+#include "debug_logging.h"
 #include "input_buffer.h"
 #include "layer_data.h"
 #include "layer_utils.h"
-#include "logging.h"
 
 namespace performancelayers {
 namespace {

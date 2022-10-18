@@ -18,7 +18,7 @@
 #include <cassert>
 
 #include "absl/strings/match.h"
-#include "logging.h"
+#include "debug_logging.h"
 
 namespace performancelayers {
 

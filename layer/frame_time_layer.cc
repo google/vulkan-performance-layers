@@ -21,10 +21,10 @@
 #include <string>
 #include <type_traits>
 
+#include "debug_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 #include "log_scanner.h"
-#include "logging.h"
 
 namespace {
 // ----------------------------------------------------------------------------

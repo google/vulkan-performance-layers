@@ -18,9 +18,9 @@
 #include <numeric>
 #include <vector>
 
+#include "debug_logging.h"
 #include "gtest/gtest.h"
 #include "input_buffer.h"
-#include "logging.h"
 
 namespace {
 

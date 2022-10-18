@@ -16,7 +16,7 @@
 
 #include <inttypes.h>
 
-#include "logging.h"
+#include "debug_logging.h"
 
 namespace performancelayers {
 

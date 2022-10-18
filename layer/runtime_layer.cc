@@ -18,8 +18,8 @@
 #include <functional>
 #include <string>
 
+#include "debug_logging.h"
 #include "layer_utils.h"
-#include "logging.h"
 #include "runtime_layer_data.h"
 
 namespace {

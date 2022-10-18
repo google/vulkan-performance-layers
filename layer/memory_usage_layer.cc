@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "debug_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
-#include "logging.h"
 
 namespace {
 // ----------------------------------------------------------------------------

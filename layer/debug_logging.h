@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LOGGING_H_
-#define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LOGGING_H_
+#ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_DEBUG_LOGGING_H_
+#define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_DEBUG_LOGGING_H_
 
 #include <sstream>
 
@@ -58,4 +58,4 @@ class MessageLogger {
   performancelayers::MessageLogger( \
       performancelayers::LogMessageKind::LOG_LEVEL_, __FILE__, __LINE__)
 
-#endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LOGGING_H_
+#endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_DEBUG_LOGGING_H_
