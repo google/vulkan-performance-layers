@@ -144,6 +144,7 @@ target_link_libraries(layer_support_tests PRIVATE
     performance_layers_support_lib
     gtest
     gtest_main
+    gmock
     ${FILESYSTEM_LIB_NAME}
 )
 
