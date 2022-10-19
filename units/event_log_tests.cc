@@ -1,4 +1,16 @@
-#include <sstream>
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "event_logging.h"
 #include "gmock/gmock.h"
@@ -39,57 +51,6 @@ class TestLogger : public EventLogger {
   size_t flush_count_ = 0;
 };
 
-std::string ValueToCSVString(const std::string &value) { return value; }
-
-std::string ValueToCSVString(const int64_t value) {
-  return std::to_string(value);
-}
-
-std::string ValueToCSVString(const std::vector<int64_t> &values) {
-  std::stringstream csv_string;
-  csv_string << "\"[";
-  size_t e = values.size();
-  for (size_t i = 0; i != e; ++i) {
-    const char *delimiter = i < e - 1 ? "," : "";
-    csv_string << values[i] << delimiter;
-  }
-  csv_string << "]\"";
-  return csv_string.str();
-}
-
-// Takes an `Event` instance as an input and generates a csv string containing
-// `event`'s name and attribute values.
-// TODO(miladhakimi): Differentiate hashes and other integers. Hashes
-// should be displayed in hex.
-std::string EventToCSVString(Event &event) {
-  const std::vector<Attribute *> &attributes = event.GetAttributes();
-
-  std::stringstream csv_str;
-  csv_str << event.GetEventName();
-  csv_str << ",";
-  for (size_t i = 0, e = attributes.size(); i != e; ++i) {
-    switch (attributes[i]->GetValueType()) {
-      case ValueType::kInt64: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<Int64Attr>()->GetValue());
-        break;
-      }
-      case ValueType::kString: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<StringAttr>()->GetValue());
-        break;
-      }
-      case ValueType::kVectorInt64: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<VectorInt64Attr>()->GetValue());
-        break;
-      }
-    }
-    if (i + 1 != e) csv_str << ",";
-  }
-  return csv_str.str();
-}
-
 TEST(Event, AttributeCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
@@ -116,21 +77,16 @@ TEST(Event, CreateShaderModuleEventCreation) {
   EXPECT_EQ(compile_event.GetNumAttributes(), 3);
 }
 
-TEST(Event, ShaderModuleEventCSVStringGeneration) {
+TEST(Event, ShaderModuleEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t duration = 926318;
-  std::stringstream expected_str;
-  expected_str << "compile_time," << timestamp_val << "," << hash_val1 << ","
-               << duration;
   CreateShaderModuleEvent compile_event("compile_time", timestamp_val,
                                         hash_val1, duration, LogLevel::kLow);
   ASSERT_EQ(compile_event.GetNumAttributes(), 3);
-
-  EXPECT_EQ(EventToCSVString(compile_event), expected_str.str());
 }
 
-TEST(Event, GraphicsPipelinesEventCSVStringGeneration) {
+TEST(Event, GraphicsPipelinesEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
@@ -140,7 +96,7 @@ TEST(Event, GraphicsPipelinesEventCSVStringGeneration) {
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
                                               timestamp_val, hashes, duration,
                                               LogLevel::kLow);
-  EXPECT_EQ(pipeline_event.GetNumAttributes(), 3);
+  ASSERT_EQ(pipeline_event.GetNumAttributes(), 3);
 }
 
 TEST(Event, CreateGraphicsPipelinesEventCreation) {
@@ -148,16 +104,11 @@ TEST(Event, CreateGraphicsPipelinesEventCreation) {
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
   const int64_t duration = 926318;
-  std::stringstream expected_str;
-  expected_str << "create_graphics_pipeline," << timestamp_val << ",\"["
-               << hash_val1 << "," << hash_val2 << "]\"," << duration;
   VectorInt64Attr hashes("hashes", {hash_val1, hash_val2});
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
                                               timestamp_val, hashes, duration,
                                               LogLevel::kLow);
   ASSERT_EQ(pipeline_event.GetNumAttributes(), 3);
-
-  EXPECT_EQ(EventToCSVString(pipeline_event), expected_str.str());
 }
 
 TEST(EventLogger, TestLoggerCreation) {
