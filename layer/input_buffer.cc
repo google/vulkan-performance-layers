@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "logging.h"
+#include "debug_logging.h"
 
 #if defined(__unix__)
 #include <fcntl.h>

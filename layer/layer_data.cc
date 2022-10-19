@@ -21,8 +21,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
+#include "debug_logging.h"
 #include "layer_utils.h"
-#include "logging.h"
 
 namespace {
 
