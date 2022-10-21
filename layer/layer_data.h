@@ -37,6 +37,8 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
+// Writes |content| to |file| and flushes it.
+void WriteLnAndFlush(FILE* file, std::string_view content);
 
 // Joins all |args| with the ',' CSV separator.
 template <typename... Args>

@@ -28,13 +28,6 @@ namespace {
 
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
 
-// Writes |content| to |file| and flushes it.
-void WriteLnAndFlush(FILE* file, std::string_view content) {
-  assert(file);
-  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
-  fflush(file);
-}
-
 // Returns a quoted string.
 template <typename StrTy>
 std::string QuoteStr(StrTy&& str) {
@@ -88,6 +81,12 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }  // namespace
 
 namespace performancelayers {
+void WriteLnAndFlush(FILE* file, std::string_view content) {
+  assert(file);
+  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
+  fflush(file);
+}
+
 LayerData::LayerData(char* log_filename, const char* header) {
   out_ = nullptr;
   if (log_filename) {
