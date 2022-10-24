@@ -12,42 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common_logging.h"
+
+#include <string>
+
 #include "csv_logging.h"
-
-#include <sstream>
-
 #include "debug_logging.h"
+#include "event_logging.h"
 
 namespace performancelayers {
-std::string ValueToCSVString(const std::string &value) { return value; }
-
-std::string ValueToCSVString(const int64_t value) {
-  return std::to_string(value);
-}
-
-std::string ValueToCSVString(const std::vector<int64_t> &values) {
-  std::ostringstream csv_string;
-  csv_string << "\"[";
-  size_t e = values.size();
-  for (size_t i = 0; i != e; ++i) {
-    const char *delimiter = i < e - 1 ? "," : "";
-    csv_string << values[i] << delimiter;
-  }
-  csv_string << "]\"";
-  return csv_string.str();
-}
-
-// Takes an `Event` instance as an input and generates a csv string containing
-// `event`'s name and attribute values.
-// TODO(miladhakimi): Differentiate hashes and other integers. Hashes
-// should be displayed in hex.
-std::string EventToCSVString(Event &event) {
+std::string EventToCommonLogStr(Event &event) {
   const std::vector<Attribute *> &attributes = event.GetAttributes();
 
   std::ostringstream csv_str;
   csv_str << event.GetEventName();
   csv_str << ",";
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
+    csv_str << attributes[i]->GetName() << ":";
     switch (attributes[i]->GetValueType()) {
       case ValueType::kInt64: {
         csv_str << ValueToCSVString(
@@ -70,8 +51,7 @@ std::string EventToCSVString(Event &event) {
   return csv_str.str();
 }
 
-CSVLogger::CSVLogger(const char *csv_header, const char *filename)
-    : header_(csv_header) {
+CommonLogger::CommonLogger(const char *filename) {
   if (filename) {
     out_ = fopen(filename, "w");
     if (!out_) {

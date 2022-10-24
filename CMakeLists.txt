@@ -65,6 +65,7 @@ message(STATUS "VulkanLoaderGenerated: ${VulkanLoaderGenerated_INCLUDE_DIR}")
 # The library with the common code shared by all layers.
 add_library(performance_layers_support_lib INTERFACE)
 target_sources(performance_layers_support_lib INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/common_logging.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/csv_logging.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/debug_logging.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/input_buffer.cc
@@ -134,6 +135,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
 
 enable_testing()
 add_executable(layer_support_tests
+    units/common_log_tests.cc
     units/csv_log_tests.cc
     units/event_log_tests.cc
     units/input_buffer_tests.cc
