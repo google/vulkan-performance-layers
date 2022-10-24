@@ -23,6 +23,12 @@
 #include "layer_data.h"
 
 namespace performancelayers {
+std::string ValueToCSVString(const std::string &value);
+
+std::string ValueToCSVString(const int64_t value);
+
+std::string ValueToCSVString(const std::vector<int64_t> &values);
+
 // Takes an `Event` instance as an input and generates a csv string containing
 // `event`'s name and attribute values.
 // TODO(miladhakimi): Differentiate hashes and other integers. Hashes
@@ -30,27 +36,14 @@ namespace performancelayers {
 std::string EventToCSVString(Event &event);
 
 // CSVLogger logs the events in the CSV format to the output given in its
-// constructor. Sample use:
-// ```c++
-// CSVLogger logger("pipeline,duration", "compile_time.csv");
-// logger.StartLog();
-// Event compile_time_event = ...;
-// logger.AddEvent(&compile_time_event);
-// logger.Flush();
-// logger.EndLog();
-// ```
+// constructor.
 // There is no need to add '\n' at the end of the csv_header in the constructor.
 // This is handled by the implementation. `filename` can be nullptr. In this
 // case, the output will be written to stderr.
-// The only valid methods after calling `EndLog()` are `EndLog()` and the
-// deconstructor.
+// The only valid methods after calling `EndLog()` is `EndLog()`.
 class CSVLogger : public EventLogger {
  public:
   CSVLogger(const char *csv_header, const char *filename);
-
-  ~CSVLogger() {
-    if (out_ && out_ != stderr) fclose(out_);
-  }
 
   void AddEvent(Event *event) override {
     assert(out_);

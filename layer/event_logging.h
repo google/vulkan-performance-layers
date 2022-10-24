@@ -178,6 +178,15 @@ class CreateGraphicsPipelinesEvent : public Event {
 // events in various formats (CSV, Chrome Trace Event, etc). The `EventLogger`'s
 // methods can be called from multiple threads at the same time. Hence, they are
 // expected to be internally synchronized.
+// Sample use:
+// ```c++
+// EventLogger *logger = ;
+// logger->StartLog();
+// Event compile_time_event = ...;
+// logger->AddEvent(&compile_time_event);
+// logger->Flush();
+// logger->EndLog();
+// ```
 class EventLogger {
  public:
   virtual ~EventLogger() = default;
