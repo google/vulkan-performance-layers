@@ -75,4 +75,5 @@ class CSVLogger : public EventLogger {
 };
 
 }  // namespace performancelayers
+
 #endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_CSV_LOGGING_H_

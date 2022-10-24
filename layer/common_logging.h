@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_COMMON_LOGGING_H_
+#define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_COMMON_LOGGING_H_
+
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -57,3 +60,5 @@ class CommonLogger : public EventLogger {
 };
 
 }  // namespace performancelayers
+
+#endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_COMMON_LOGGING_H_
