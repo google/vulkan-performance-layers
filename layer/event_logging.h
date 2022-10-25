@@ -94,16 +94,15 @@ using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
 // initialize their own set of attributes.
 class Event {
  public:
-  Event(const char *name, LogLevel log_level)
-      : name_(name), log_level_(log_level) {}
+  Event(const char *name, std::vector<Attribute *> attributes,
+        LogLevel log_level)
+      : name_(name), attributes_(attributes), log_level_(log_level) {}
 
   virtual ~Event() = default;
 
-  // Each implementation of an `Event` contains attribute(s) and
-  // overrides this function to return them.
-  virtual const std::vector<Attribute *> &GetAttributes() = 0;
+  const std::vector<Attribute *> &GetAttributes() { return attributes_; };
 
-  virtual size_t GetNumAttributes() const = 0;
+  size_t GetNumAttributes() const { return attributes_.size(); };
 
   const char *GetEventName() const { return name_; }
 
@@ -111,6 +110,7 @@ class Event {
 
  private:
   const char *name_;
+  std::vector<Attribute *> attributes_;
   LogLevel log_level_;
 };
 
@@ -129,23 +129,15 @@ class CreateShaderModuleEvent : public Event {
   CreateShaderModuleEvent(const char *name, int64_t timestamp,
                           int64_t hash_value, int64_t duration,
                           LogLevel log_level)
-      : Event(name, log_level),
-        timestamp_{"timestamp", timestamp},
+      : timestamp_{"timestamp", timestamp},
         hash_value_{"hash", hash_value},
         duration_{"duration", duration},
-        attributes_{&timestamp_, &hash_value_, &duration_} {}
-
-  const std::vector<Attribute *> &GetAttributes() override {
-    return attributes_;
-  }
-
-  size_t GetNumAttributes() const override { return attributes_.size(); }
+        Event(name, {&timestamp_, &hash_value_, &duration_}, log_level) {}
 
  private:
   Int64Attr timestamp_;
   Int64Attr hash_value_;
   Int64Attr duration_;
-  std::vector<Attribute *> attributes_;
 };
 
 class CreateGraphicsPipelinesEvent : public Event {
@@ -153,23 +145,15 @@ class CreateGraphicsPipelinesEvent : public Event {
   CreateGraphicsPipelinesEvent(const char *name, int64_t timestamp,
                                VectorInt64Attr &hash_values, int64_t duration,
                                LogLevel log_level)
-      : Event(name, log_level),
-        timestamp_{"timestamp", timestamp},
+      : timestamp_{"timestamp", timestamp},
         hash_values_(hash_values),
         duration_{"duration", duration},
-        attributes_{&timestamp_, &hash_values_, &duration_} {}
-
-  const std::vector<Attribute *> &GetAttributes() override {
-    return attributes_;
-  }
-
-  size_t GetNumAttributes() const override { return attributes_.size(); }
+        Event(name, {&timestamp_, &hash_values_, &duration_}, log_level) {}
 
  private:
   Int64Attr timestamp_;
   VectorInt64Attr hash_values_;
   Int64Attr duration_;
-  std::vector<Attribute *> attributes_;
 };
 
 // EventLogger base class

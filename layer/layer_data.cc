@@ -87,8 +87,17 @@ void WriteLnAndFlush(FILE* file, std::string_view content) {
   fflush(file);
 }
 
+LayerData::LayerData() {
+  if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
+    // The underlying log file can be written to by multiple layers from
+    // multiple threads. All contentens have to be written in whole lines(s)
+    // at a time to ensure there is no unintended interleaving within a single
+    // line.
+    event_log_ = fopen(event_log_file, "a");
+  }
+}
+
 LayerData::LayerData(char* log_filename, const char* header) {
-  out_ = nullptr;
   if (log_filename) {
     out_ = fopen(log_filename, "w");
     if (out_ == nullptr) {

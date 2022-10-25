@@ -141,10 +141,12 @@ class LayerData {
       absl::flat_hash_map<DeviceKey, VkLayerDispatchTable>;
   using HashVector = absl::InlinedVector<uint64_t, 3>;
 
+  LayerData();
+
   LayerData(char* log_filename, const char* header);
 
   virtual ~LayerData() {
-    if (out_ != stderr) {
+    if (out_ && out_ != stderr) {
       fclose(out_);
     }
   }
@@ -395,7 +397,7 @@ class LayerData {
       ABSL_GUARDED_BY(pipeline_hash_lock_);
 
   // A pointer to the log file to use.
-  FILE* out_;
+  FILE* out_ = nullptr;
   mutable absl::Mutex log_time_lock_;
   // The last time LogTimeDelta was called.
   absl::Time last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
