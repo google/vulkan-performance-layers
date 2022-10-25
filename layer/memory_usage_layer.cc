@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "csv_logging.h"
 #include "debug_logging.h"
+#include "event_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 
+namespace performancelayers {
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -26,11 +34,37 @@ constexpr char kLayerName[] = "VK_LAYER_STADIA_memory_usage";
 constexpr char kLayerDescription[] = "Stadia Memory Usage Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 
-class MemoryUsageLayerData : public performancelayers::LayerData {
+// An event that holds memory allocation information (current and peak
+// allocated) and can be logged both in the private and common files.
+class MemoryUsageEvent : public Event {
+ public:
+  MemoryUsageEvent(const char* name, int64_t current, int64_t peak)
+      : current_({"current", current}),
+        peak_({"peak", peak}),
+        Event(name, {&current_, &peak_}, LogLevel::kHigh) {}
+
+ private:
+  Int64Attr current_;
+  Int64Attr peak_;
+};
+
+class MemoryUsageLayerData : public LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
+      : private_logger_(
+            CSVLogger("Current (bytes), peak (bytes)", log_filename)),
+        private_logger_filter_(
+            FilterLogger(&private_logger_, LogLevel::kHigh)) {
+    private_logger_filter_.StartLog();
     LogEventOnly("memory_usage_layer_init");
+  }
+
+  ~MemoryUsageLayerData() { private_logger_filter_.EndLog(); }
+
+  // Logs the incoming `MemoryUsage` event to the layer log file.
+  void LogEvent(Event* event) {
+    private_logger_filter_.AddEvent(event);
+    private_logger_filter_.Flush();
   }
 
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
@@ -71,10 +105,9 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
     current_allocation_size_ -= size;
   }
 
-  void LogUsage(const char* event_type) {
-    LogLine(event_type, performancelayers::CsvCat(current_allocation_size_,
-                                                  peak_allocation_size_));
-  }
+  uint64_t GetPeakAllocationSize() const { return peak_allocation_size_; }
+
+  uint64_t GetCurrentAllocationSize() const { return current_allocation_size_; }
 
  private:
   mutable absl::Mutex memory_hash_lock_;
@@ -86,6 +119,8 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
 
   VkDeviceSize current_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
   VkDeviceSize peak_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
+  CSVLogger private_logger_;
+  FilterLogger private_logger_filter_;
 };
 
 MemoryUsageLayerData* GetLayerData() {
@@ -130,7 +165,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
 SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyInstance,
                             (VkInstance instance,
                              const VkAllocationCallbacks* allocator)) {
-  performancelayers::LayerData* layer_data = GetLayerData();
+  LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
   layer_data->RemoveInstance(instance);
@@ -171,7 +206,14 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
   MemoryUsageLayerData* layer_data = GetLayerData();
   // Remove memory allocation records for the device being destroyed.
   layer_data->RecordDestroyDeviceMemory(device);
-  layer_data->LogUsage("memory_usage_destroy_device");
+
+  int64_t current_alloc = layer_data->GetCurrentAllocationSize();
+  int64_t peak_alloc = layer_data->GetPeakAllocationSize();
+  layer_data->LogEventOnly("memory_usage_destroy_device",
+                           CsvCat(current_alloc, peak_alloc));
+  MemoryUsageEvent event("memory_usage_destroy_device", current_alloc,
+                         peak_alloc);
+  layer_data->LogEvent(&event);
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::DestroyDevice);
@@ -185,8 +227,12 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
                              const VkPresentInfoKHR* present_info)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
 
-  layer_data->LogUsage("memory_usage_present");
-
+  int64_t current_alloc = layer_data->GetCurrentAllocationSize();
+  int64_t peak_alloc = layer_data->GetPeakAllocationSize();
+  layer_data->LogEventOnly("memory_usage_present",
+                           CsvCat(current_alloc, peak_alloc));
+  MemoryUsageEvent event("memory_usage_present", current_alloc, peak_alloc);
+  layer_data->LogEvent(&event);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueuePresentKHR);
   return next_proc(queue, present_info);
@@ -237,8 +283,7 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetDeviceProcAddr,
                                                   (VkDevice device,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -255,8 +300,7 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetInstanceProcAddr,
                                                   (VkInstance instance,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -268,3 +312,5 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
+
+}  // namespace performancelayers
