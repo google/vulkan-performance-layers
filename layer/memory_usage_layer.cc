@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "debug_logging.h"
+#include "event_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 
+namespace performancelayers {
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -26,7 +32,27 @@ constexpr char kLayerName[] = "VK_LAYER_STADIA_memory_usage";
 constexpr char kLayerDescription[] = "Stadia Memory Usage Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 
-class MemoryUsageLayerData : public performancelayers::LayerData {
+// An event that holds memory allocation information (current and peak
+// allocated) and can be logged both in the private and common files.
+class MemoryUsageEvent : public Event {
+ public:
+  MemoryUsageEvent(const char* name, int64_t current, int64_t peak)
+      : Event(name, LogLevel::kHigh),
+        current_({"current", current}),
+        peak_({"peak", peak}),
+        attributes_{&current_, &peak_} {}
+
+  const std::vector<Attribute*>& GetAttributes() override {
+    return attributes_;
+  }
+
+ private:
+  Int64Attr current_;
+  Int64Attr peak_;
+  std::vector<Attribute*> attributes_;
+};
+
+class MemoryUsageLayerData : public LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
       : LayerData(log_filename, "Current (bytes), peak (bytes)") {
@@ -72,8 +98,8 @@ class MemoryUsageLayerData : public performancelayers::LayerData {
   }
 
   void LogUsage(const char* event_type) {
-    LogLine(event_type, performancelayers::CsvCat(current_allocation_size_,
-                                                  peak_allocation_size_));
+    LogLine(event_type,
+            CsvCat(current_allocation_size_, peak_allocation_size_));
   }
 
  private:
@@ -130,7 +156,7 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, CreateDevice,
 SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyInstance,
                             (VkInstance instance,
                              const VkAllocationCallbacks* allocator)) {
-  performancelayers::LayerData* layer_data = GetLayerData();
+  LayerData* layer_data = GetLayerData();
   auto next_proc = layer_data->GetNextInstanceProcAddr(
       instance, &VkLayerInstanceDispatchTable::DestroyInstance);
   layer_data->RemoveInstance(instance);
@@ -237,8 +263,7 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetDeviceProcAddr,
                                                   (VkDevice device,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -255,8 +280,7 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetInstanceProcAddr,
                                                   (VkInstance instance,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -268,3 +292,5 @@ SPL_LAYER_ENTRY_POINT SPL_MEMORY_USAGE_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
+
+}  // namespace performancelayers

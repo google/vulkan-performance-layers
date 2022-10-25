@@ -103,7 +103,7 @@ class Event {
   // overrides this function to return them.
   virtual const std::vector<Attribute *> &GetAttributes() = 0;
 
-  virtual size_t GetNumAttributes() const = 0;
+  virtual size_t GetNumAttributes() { return GetAttributes().size(); };
 
   const char *GetEventName() const { return name_; }
 
@@ -139,8 +139,6 @@ class CreateShaderModuleEvent : public Event {
     return attributes_;
   }
 
-  size_t GetNumAttributes() const override { return attributes_.size(); }
-
  private:
   Int64Attr timestamp_;
   Int64Attr hash_value_;
@@ -158,12 +156,6 @@ class CreateGraphicsPipelinesEvent : public Event {
         hash_values_(hash_values),
         duration_{"duration", duration},
         attributes_{&timestamp_, &hash_values_, &duration_} {}
-
-  const std::vector<Attribute *> &GetAttributes() override {
-    return attributes_;
-  }
-
-  size_t GetNumAttributes() const override { return attributes_.size(); }
 
  private:
   Int64Attr timestamp_;
