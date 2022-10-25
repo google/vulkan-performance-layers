@@ -20,7 +20,7 @@
 #include <string>
 
 #include "event_logging.h"
-#include "layer_data.h"
+#include "layer_utils.h"
 
 namespace performancelayers {
 // Converts `event` to a string with the common log format. The common log

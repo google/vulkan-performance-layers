@@ -17,6 +17,12 @@
 #include <cassert>
 
 namespace performancelayers {
+void WriteLnAndFlush(FILE* file, std::string_view content) {
+  assert(file);
+  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
+  fflush(file);
+}
+
 FunctionInterceptor::FunctionInterceptor(
     InterceptedVulkanFunc intercepted_function) {
   FunctionNameToPtr& registered_functions = GetInterceptedFunctions();

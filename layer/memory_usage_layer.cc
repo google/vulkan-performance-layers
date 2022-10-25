@@ -48,23 +48,12 @@ class MemoryUsageEvent : public Event {
   Int64Attr peak_;
 };
 
-class MemoryUsageLayerData : public LayerData {
+class MemoryUsageLayerData : public LayerDataWithEventLogger {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : private_logger_(
-            CSVLogger("Current (bytes), peak (bytes)", log_filename)),
-        private_logger_filter_(
-            FilterLogger(&private_logger_, LogLevel::kHigh)) {
-    private_logger_filter_.StartLog();
+      : LayerDataWithEventLogger(log_filename,
+                                 "Current (bytes), peak (bytes)") {
     LogEventOnly("memory_usage_layer_init");
-  }
-
-  ~MemoryUsageLayerData() { private_logger_filter_.EndLog(); }
-
-  // Logs the incoming `MemoryUsage` event to the layer log file.
-  void LogEvent(Event* event) {
-    private_logger_filter_.AddEvent(event);
-    private_logger_filter_.Flush();
   }
 
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
@@ -119,8 +108,6 @@ class MemoryUsageLayerData : public LayerData {
 
   VkDeviceSize current_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
   VkDeviceSize peak_allocation_size_ ABSL_GUARDED_BY(memory_hash_lock_) = 0;
-  CSVLogger private_logger_;
-  FilterLogger private_logger_filter_;
 };
 
 MemoryUsageLayerData* GetLayerData() {
