@@ -15,10 +15,14 @@
 #include "csv_logging.h"
 
 #include <sstream>
+#include <string>
 
 #include "debug_logging.h"
+#include "event_logging.h"
 
 namespace performancelayers {
+std::string ValueToCSVString(const bool value) { return std::to_string(value); }
+
 std::string ValueToCSVString(const std::string &value) { return value; }
 
 std::string ValueToCSVString(const int64_t value) {
@@ -47,6 +51,11 @@ std::string EventToCSVString(Event &event) {
   std::ostringstream csv_str;
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
+      case ValueType::kBool: {
+        csv_str << ValueToCSVString(
+            attributes[i]->cast<BoolAttr>()->GetValue());
+        break;
+      }
       case ValueType::kInt64: {
         csv_str << ValueToCSVString(
             attributes[i]->cast<Int64Attr>()->GetValue());

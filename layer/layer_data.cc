@@ -145,15 +145,18 @@ void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
   LogLine(event_type, pipeline_and_content);
 }
 
-void LayerData::LogTimeDelta(std::string_view event_type,
-                             std::string_view extra_content) {
+int64_t LayerData::GetTimeDelta() {
   absl::MutexLock lock(&log_time_lock_);
   DurationClock::time_point now = Now();
+  int64_t logged_delta = -1;
+
   if (last_log_time_ != DurationClock::time_point::min()) {
-    int64_t logged_delta = ToInt64Nanoseconds(now - last_log_time_);
-    LogLine(event_type, CsvCat(logged_delta, extra_content));
+    // Using initialized logged_delta
+    logged_delta = ToInt64Nanoseconds(now - last_log_time_);
   }
+
   last_log_time_ = now;
+  return logged_delta;
 }
 
 void LayerData::LogEventOnly(std::string_view event_type,

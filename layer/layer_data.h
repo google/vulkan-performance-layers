@@ -319,9 +319,19 @@ class LayerData {
   void Log(std::string_view event_type, const HashVector& pipeline,
            std::string_view prefix) const;
 
-  // Logs the time since the last call to LogTimeDelta.
-  void LogTimeDelta(std::string_view event_type,
-                    std::string_view extra_content = "");
+  // Returns the time difference between the last time this method was called
+  // and now. The first call is used for initialization and does not calculate
+  // the time delta. It returns -1 indicating an invalid time delta. Use case
+  // example:
+  // ```c++
+  // int64_t time_delta = GetTimeDelta();
+  // if (time_delta != -1) {
+  //    std::cout << "Success: time_delta is " << time_delta << std::endl;
+  // } else {
+  //    std::cerr << "Error: time_delta is invalid." << std::endl;
+  // }
+  // ```
+  int64_t GetTimeDelta();
 
   // Logs an arbitrary |extra_content| to the event log file.
   // Doesn't write to the layer log file.

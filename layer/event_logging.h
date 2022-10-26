@@ -20,7 +20,7 @@
 
 namespace performancelayers {
 // Set of supported value types for an attribute.
-enum ValueType { kString, kInt64, kVectorInt64 };
+enum ValueType { kString, kInt64, kVectorInt64, kBool };
 
 // Specifies the importance of an Eventk. Events are logged based on their level
 // of importance. E.g., compile_time.csv only containsk the important compile
@@ -88,6 +88,7 @@ using VectorInt64Attr =
     AttributeImpl<std::vector<int64_t>, ValueType::kVectorInt64>;
 using StringAttr = AttributeImpl<std::string, ValueType::kString>;
 using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
+using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
 
 // Event represents the base struct for a loggable event. It contains the
 // event's name and the level of importance. The derived structs must define and
