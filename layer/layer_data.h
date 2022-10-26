@@ -28,6 +28,8 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "csv_logging.h"
+#include "event_logging.h"
 #include "farmhash.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
@@ -37,9 +39,6 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
-// Writes |content| to |file| and flushes it.
-void WriteLnAndFlush(FILE* file, std::string_view content);
-
 // Joins all |args| with the ',' CSV separator.
 template <typename... Args>
 std::string CsvCat(Args&&... args) {
@@ -406,6 +405,37 @@ class LayerData {
   // Event log file appended to by multiple layers, or nullptr.
   FILE* event_log_ = nullptr;
 };
+
+// This class adds a CSV logger to the `LayerData`. The logger writes to the
+// layer's private file. The constructor and destructor are responsible for
+// starting and ending the logger respectively. Sample use case:
+// ```c++
+// LayerDataWithEventLogger layer_data(csv_filename, csv_header);
+// Event event = ...;
+// layer_data.LogEvent(&event);
+// ```
+class LayerDataWithEventLogger : public LayerData {
+ public:
+  LayerDataWithEventLogger(char* log_filename, const char* header)
+      : private_logger_(CSVLogger(header, log_filename)),
+        private_logger_filter_(
+            FilterLogger(&private_logger_, LogLevel::kHigh)) {
+    private_logger_filter_.StartLog();
+  }
+
+  ~LayerDataWithEventLogger() { private_logger_filter_.EndLog(); }
+
+  // Logs the incoming `MemoryUsage` event to the layer log file.
+  void LogEvent(Event* event) {
+    private_logger_filter_.AddEvent(event);
+    private_logger_filter_.Flush();
+  }
+
+ private:
+  CSVLogger private_logger_;
+  FilterLogger private_logger_filter_;
+};
+
 }  // namespace performancelayers
 
 #endif  // STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_LAYER_DATA_H_

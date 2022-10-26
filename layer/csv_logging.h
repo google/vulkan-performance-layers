@@ -16,11 +16,10 @@
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_CSV_LOGGING_H_
 
 #include <cassert>
-#include <cstdio>
 #include <string>
 
 #include "event_logging.h"
-#include "layer_data.h"
+#include "layer_utils.h"
 
 namespace performancelayers {
 std::string ValueToCSVString(const std::string &value);

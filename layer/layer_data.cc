@@ -81,12 +81,6 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }  // namespace
 
 namespace performancelayers {
-void WriteLnAndFlush(FILE* file, std::string_view content) {
-  assert(file);
-  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
-  fflush(file);
-}
-
 LayerData::LayerData() {
   if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
     // The underlying log file can be written to by multiple layers from

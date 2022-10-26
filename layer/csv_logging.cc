@@ -45,8 +45,6 @@ std::string EventToCSVString(Event &event) {
   const std::vector<Attribute *> &attributes = event.GetAttributes();
 
   std::ostringstream csv_str;
-  csv_str << event.GetEventName();
-  csv_str << ",";
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
       case ValueType::kInt64: {

@@ -15,6 +15,9 @@
 #ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
 
+#include <cstdio>
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_core.h"
@@ -50,6 +53,8 @@
       reinterpret_cast<PFN_vk##FUNC_NAME_>(gdpa(*device, "vk" #FUNC_NAME_))
 
 namespace performancelayers {
+// Writes |content| to |file| and flushes it.
+void WriteLnAndFlush(FILE* file, std::string_view content);
 
 // Represents a type-erased layer function pointer intercepting a known
 // Vulkan function. Should be constructed with the type safe |Create|
