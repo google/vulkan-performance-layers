@@ -31,6 +31,7 @@
 #include "csv_logging.h"
 #include "event_logging.h"
 #include "farmhash.h"
+#include "layer_utils.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_core.h"
@@ -305,7 +306,7 @@ class LayerData {
 
   // Logs one line to the log file, and to the event log file, if enabled.
   void LogLine(std::string_view event_type, std::string_view line,
-               absl::Time timestamp = absl::Now()) const;
+               TimestampClock::time_point timestamp = GetTimestamp()) const;
 
   // Logs the compile time |time| for |pipeline| to the log file.
   // |event_type| is used as the key in the event log file, if enabled.
@@ -352,8 +353,9 @@ class LayerData {
   struct ShaderModuleCreateResult {
     VkResult result;
     uint64_t shader_hash;
-    absl::Time create_start;
-    absl::Time create_end;
+    // Monotonic time_points to measure the shader module creation duration.
+    DurationClock::time_point create_start;
+    DurationClock::time_point create_end;
   };
 
   // Builds the shader module by calling |CreateShaderModule| for the next
@@ -398,9 +400,10 @@ class LayerData {
   // A pointer to the log file to use.
   FILE* out_ = nullptr;
   mutable absl::Mutex log_time_lock_;
-  // The last time LogTimeDelta was called.
-  absl::Time last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
-      absl::InfinitePast();
+  // The last time LogTimeDelta was called. A monotonic time_point to calculate
+  // log time delta.
+  DurationClock::time_point last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
+      DurationClock::time_point::min();
 
   // Event log file appended to by multiple layers, or nullptr.
   FILE* event_log_ = nullptr;
