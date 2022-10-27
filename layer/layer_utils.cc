@@ -17,6 +17,18 @@
 #include <cassert>
 
 namespace performancelayers {
+TimestampClock::time_point GetTimestamp() { return TimestampClock::now(); }
+
+DurationClock::time_point Now() { return DurationClock::now(); }
+
+int64_t ToInt64Nanoseconds(DurationClock::duration duration) {
+  return std::chrono::nanoseconds(duration).count();
+}
+
+int64_t ToUnixNanos(TimestampClock::time_point time) {
+  return std::chrono::nanoseconds(time.time_since_epoch()).count();
+}
+
 void WriteLnAndFlush(FILE* file, std::string_view content) {
   assert(file);
   fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());

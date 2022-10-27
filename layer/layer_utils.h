@@ -15,6 +15,8 @@
 #ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_UTILS_H_
 
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <string>
 
@@ -53,6 +55,30 @@
       reinterpret_cast<PFN_vk##FUNC_NAME_>(gdpa(*device, "vk" #FUNC_NAME_))
 
 namespace performancelayers {
+// steady_clock, system_clock, and high_resolution_clock comparison:
+// 1. steady_clock: A monotonic clock. The current value of steady_clock does
+// not matter, but the guarantee that is strictly increasing is useful for
+// calculating the difference between two samples.
+// 2. system_clock: Is the wall-clock. Used for time/day related stuff.
+// 3. high_resolution_clock: An alias for one of the above.
+using TimestampClock = std::chrono::system_clock;
+using DurationClock = std::chrono::steady_clock;
+
+// Returns a system_clock::time_point as the timestamp. The system_clock acts
+// like a real clock and shows the current time, while the steady_clock is a
+// monotonic clock and behaves like a chronometer. This is why system_clock is
+// used for the timestamp.
+TimestampClock::time_point GetTimestamp();
+
+// Returns a monotonic time_point to be used for measuring duration.
+DurationClock::time_point Now();
+
+// Converts a chrono duration to int64 nanoseconds.
+int64_t ToInt64Nanoseconds(DurationClock::duration duration);
+
+// Converts a chrono time_point to a Unix int64 nanoseconds representation.
+int64_t ToUnixNanos(TimestampClock::time_point time);
+
 // Writes |content| to |file| and flushes it.
 void WriteLnAndFlush(FILE* file, std::string_view content);
 

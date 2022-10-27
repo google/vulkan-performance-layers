@@ -24,8 +24,8 @@
 #include "debug_logging.h"
 #include "layer_utils.h"
 
+namespace performancelayers {
 namespace {
-
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
 
 // Returns a quoted string.
@@ -36,9 +36,10 @@ std::string QuoteStr(StrTy&& str) {
 
 // Returns event log file row prefix with ','-separated |event_type| and
 // |timestamp|.
-std::string MakeEventLogPrefix(std::string_view event_type,
-                               absl::Time timestamp = absl::Now()) {
-  return performancelayers::CsvCat(event_type, absl::ToUnixNanos(timestamp));
+std::string MakeEventLogPrefix(
+    std::string_view event_type,
+    TimestampClock::time_point timestamp = GetTimestamp()) {
+  return CsvCat(event_type, ToUnixNanos(timestamp));
 }
 
 // Returns the first create info of type
@@ -80,7 +81,6 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }
 }  // namespace
 
-namespace performancelayers {
 LayerData::LayerData() {
   if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
     // The underlying log file can be written to by multiple layers from
@@ -122,7 +122,7 @@ void LayerData::RemoveInstance(VkInstance instance) {
 }
 
 void LayerData::LogLine(std::string_view event_type, std::string_view line,
-                        absl::Time timestamp) const {
+                        TimestampClock::time_point timestamp) const {
   WriteLnAndFlush(out_, line);
   if (event_log_)
     WriteLnAndFlush(event_log_,
@@ -148,10 +148,10 @@ void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
 void LayerData::LogTimeDelta(std::string_view event_type,
                              std::string_view extra_content) {
   absl::MutexLock lock(&log_time_lock_);
-  auto now = absl::Now();
-  if (last_log_time_ != absl::InfinitePast()) {
+  DurationClock::time_point now = Now();
+  if (last_log_time_ != DurationClock::time_point::min()) {
     int64_t logged_delta = ToInt64Nanoseconds(now - last_log_time_);
-    LogLine(event_type, CsvCat(logged_delta, extra_content), now);
+    LogLine(event_type, CsvCat(logged_delta, extra_content));
   }
   last_log_time_ = now;
 }
@@ -264,9 +264,9 @@ LayerData::ShaderModuleCreateResult LayerData::CreateShaderModule(
     const VkAllocationCallbacks* allocator, VkShaderModule* shader_module) {
   auto next_proc =
       GetNextDeviceProcAddr(device, &VkLayerDispatchTable::CreateShaderModule);
-  absl::Time start = absl::Now();
+  DurationClock::time_point start = Now();
   VkResult result = next_proc(device, create_info, allocator, shader_module);
-  absl::Time end = absl::Now();
+  DurationClock::time_point end = Now();
   uint64_t hash =
       HashShader(*shader_module, create_info->pCode, create_info->codeSize);
   return {result, hash, start, end};

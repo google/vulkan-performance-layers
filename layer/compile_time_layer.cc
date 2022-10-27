@@ -23,6 +23,7 @@
 #include "layer_data.h"
 #include "layer_utils.h"
 
+namespace performancelayers {
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -34,7 +35,7 @@ constexpr char kLayerDescription[] =
     "Stadia Pipeline Compile Time Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
 
-class CompileTimeLayerData : public performancelayers::LayerData {
+class CompileTimeLayerData : public LayerData {
  public:
   CompileTimeLayerData(char* log_filename)
       : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
@@ -44,13 +45,13 @@ class CompileTimeLayerData : public performancelayers::LayerData {
   // Used to track the slack between shader module creation and its first use in
   // pipeline creation.
   struct ShaderModuleSlack {
-    std::optional<absl::Time> creation_end_time = std::nullopt;
-    std::optional<absl::Time> first_use_time = std::nullopt;
+    std::optional<DurationClock::time_point> creation_end_time = std::nullopt;
+    std::optional<DurationClock::time_point> first_use_time = std::nullopt;
   };
 
   // Records the time |create_end| of the |shader| creation.
   void RecordShaderModuleCreation(VkShaderModule shader,
-                                  absl::Time create_end) {
+                                  DurationClock::time_point create_end) {
     absl::MutexLock lock(&shader_module_usage_lock_);
     assert(!shader_module_to_usage_.contains(shader) &&
            "Shader already created");
@@ -71,16 +72,15 @@ class CompileTimeLayerData : public performancelayers::LayerData {
       assert(usage_info.creation_end_time.has_value());
 
       if (!usage_info.first_use_time) {
-        usage_info.first_use_time = absl::Now();
-        first_use_slack_ns = absl::ToInt64Nanoseconds(
-            *usage_info.first_use_time - *usage_info.creation_end_time);
+        usage_info.first_use_time = Now();
+        first_use_slack_ns = ToInt64Nanoseconds(*usage_info.first_use_time -
+                                                *usage_info.creation_end_time);
       }
     }
     if (first_use_slack_ns != -1) {
       const uint64_t hash = GetShaderHash(shader);
       LogEventOnly("shader_module_first_use_slack_ns",
-                   performancelayers::CsvCat(ShaderHashToString(hash),
-                                             first_use_slack_ns));
+                   CsvCat(ShaderHashToString(hash), first_use_slack_ns));
     }
   }
 
@@ -164,13 +164,13 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   assert(create_info_count > 0 &&
          "Specification says create_info_count must be > 0.");
 
-  absl::Time start = absl::Now();
+  DurationClock::time_point start = Now();
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
-  absl::Time end = absl::Now();
+  DurationClock::time_point end = Now();
   uint64_t duration = ToInt64Nanoseconds(end - start);
 
-  performancelayers::LayerData::HashVector hashes;
+  LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {
     auto h = layer_data->HashComputePipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
@@ -203,13 +203,13 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   assert(create_info_count > 0 &&
          "Specification says create_info_count must be > 0.");
 
-  auto start = absl::Now();
+  DurationClock::time_point start = Now();
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
-  auto end = absl::Now();
+  DurationClock::time_point end = Now();
   uint64_t duration = ToInt64Nanoseconds(end - start);
 
-  performancelayers::LayerData::HashVector hashes;
+  LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {
     auto h = layer_data->HashGraphicsPipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
@@ -233,11 +233,11 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
   if (res.result == VK_SUCCESS) {
     layer_data->RecordShaderModuleCreation(*shader_module, res.create_end);
     const int64_t create_time_ns =
-        absl::ToInt64Nanoseconds(res.create_end - res.create_start);
+        ToInt64Nanoseconds(res.create_end - res.create_start);
     layer_data->LogEventOnly(
         "create_shader_module_ns",
-        performancelayers::CsvCat(
-            layer_data->ShaderHashToString(res.shader_hash), create_time_ns));
+        CsvCat(layer_data->ShaderHashToString(res.shader_hash),
+               create_time_ns));
   }
   return res.result;
 }
@@ -323,8 +323,7 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetDeviceProcAddr,
                                                   (VkDevice device,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -341,8 +340,7 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
                                                   GetInstanceProcAddr,
                                                   (VkInstance instance,
                                                    const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -354,3 +352,4 @@ SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
+}  // namespace performancelayers
