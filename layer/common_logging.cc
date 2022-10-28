@@ -30,6 +30,11 @@ std::string EventToCommonLogStr(Event &event) {
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     csv_str << attributes[i]->GetName() << ":";
     switch (attributes[i]->GetValueType()) {
+      case ValueType::kBool: {
+        csv_str << ValueToCSVString(
+            attributes[i]->cast<BoolAttr>()->GetValue());
+        break;
+      }
       case ValueType::kInt64: {
         csv_str << ValueToCSVString(
             attributes[i]->cast<Int64Attr>()->GetValue());

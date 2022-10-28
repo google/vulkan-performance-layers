@@ -22,10 +22,12 @@
 #include <type_traits>
 
 #include "debug_logging.h"
+#include "event_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 #include "log_scanner.h"
 
+namespace performancelayers {
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -47,20 +49,32 @@ const char* StrOrEmpty(const char* str_or_null) {
   return str_or_null ? str_or_null : "";
 }
 
-class FrameTimeLayerData : public performancelayers::LayerData {
+class FrameTimeEvent : public Event {
+ public:
+  FrameTimeEvent(const char* name, int64_t time_delta, bool started)
+      : time_delta_("frame_time", time_delta),
+        started_("started", started),
+        Event(name, {&time_delta_, &started_}, LogLevel::kHigh) {}
+
+ private:
+  BoolAttr started_;
+  Int64Attr time_delta_;
+};
+
+class FrameTimeLayerData : public LayerDataWithEventLogger {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
                      const char* benchmark_watch_filename,
                      const char* benchmark_start_string)
-      : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
+      : LayerDataWithEventLogger(log_filename,
+                                 "Frame Time (ns),Benchmark State"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
         benchmark_start_pattern_(StrOrEmpty(benchmark_start_string)) {
     LogEventOnly("frame_time_layer_init");
     if (!benchmark_watch_filename || strlen(benchmark_watch_filename) == 0)
       return;
 
-    benchmark_log_scanner_ =
-        performancelayers::LogScanner::FromFilename(benchmark_watch_filename);
+    benchmark_log_scanner_ = LogScanner::FromFilename(benchmark_watch_filename);
     if (benchmark_log_scanner_)
       benchmark_log_scanner_->RegisterWatchedPattern(benchmark_start_pattern_);
   }
@@ -84,7 +98,7 @@ class FrameTimeLayerData : public performancelayers::LayerData {
 
   uint32_t benchmark_state_idx_ = 0;
   std::string benchmark_start_pattern_;
-  std::optional<performancelayers::LogScanner> benchmark_log_scanner_;
+  std::optional<LogScanner> benchmark_log_scanner_;
 };
 
 FrameTimeLayerData* GetLayerData() {
@@ -160,8 +174,17 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
                           (VkQueue queue,
                            const VkPresentInfoKHR* present_info)) {
   auto* layer_data = GetLayerData();
-  layer_data->LogTimeDelta("frame_present",
-                           layer_data->HasBenchmarkStarted() ? "1" : "0");
+
+  int64_t logged_delta = layer_data->GetTimeDelta();
+  if (logged_delta != -1) {
+    layer_data->LogEventOnly(
+        "frame_present",
+        CsvCat(logged_delta, layer_data->HasBenchmarkStarted() ? "1" : "0"));
+
+    FrameTimeEvent event("frame_present", logged_delta,
+                         layer_data->HasBenchmarkStarted());
+    layer_data->LogEvent(&event);
+  }
 
   uint64_t frames_elapsed = layer_data->IncrementFrameNum();
   uint64_t exit_frame_num = layer_data->GetExitFrameNum();
@@ -291,8 +314,7 @@ SPL_LAYER_ENTRY_POINT SPL_FRAME_TIME_LAYER_FUNC(PFN_vkVoidFunction,
                                                 GetDeviceProcAddr,
                                                 (VkDevice device,
                                                  const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -309,8 +331,7 @@ SPL_LAYER_ENTRY_POINT SPL_FRAME_TIME_LAYER_FUNC(PFN_vkVoidFunction,
                                                 GetInstanceProcAddr,
                                                 (VkInstance instance,
                                                  const char* name)) {
-  if (auto func =
-          performancelayers::FunctionInterceptor::GetInterceptedOrNull(name)) {
+  if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
 
@@ -322,3 +343,5 @@ SPL_LAYER_ENTRY_POINT SPL_FRAME_TIME_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
+
+}  // namespace performancelayers
