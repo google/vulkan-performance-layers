@@ -308,14 +308,10 @@ class LayerData {
   void LogLine(std::string_view event_type, std::string_view line,
                TimestampClock::time_point timestamp = GetTimestamp()) const;
 
-  // Logs the compile time |time| for |pipeline| to the log file.
+  // Logs an arbitrary string prefixed by the given pipeline.
   // |event_type| is used as the key in the event log file, if enabled.
   // |pipeline| is any series of integers that represent the pipeline.
   // We are using the hash of each shader that is part of the pipeline.
-  void Log(std::string_view event_type, const HashVector& pipeline,
-           uint64_t time) const;
-
-  // Logs an arbitrary string prefixed by the given pipeline.
   void Log(std::string_view event_type, const HashVector& pipeline,
            std::string_view prefix) const;
 
