@@ -95,9 +95,8 @@ using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
 // initialize their own set of attributes.
 class Event {
  public:
-  Event(const char *name, std::vector<Attribute *> attributes,
-        LogLevel log_level)
-      : name_(name), attributes_(attributes), log_level_(log_level) {}
+  Event(const char *name, LogLevel log_level)
+      : name_(name), log_level_(log_level) {}
 
   virtual ~Event() = default;
 
@@ -109,10 +108,15 @@ class Event {
 
   LogLevel GetLogLevel() const { return log_level_; }
 
+ protected:
+  void InitAttributes(std::initializer_list<Attribute *> attrs) {
+    attributes_ = {attrs.begin(), attrs.end()};
+  }
+
  private:
   const char *name_;
-  std::vector<Attribute *> attributes_;
   LogLevel log_level_;
+  std::vector<Attribute *> attributes_;
 };
 
 // An `Event` for the CreateShaderModule function.
@@ -130,10 +134,12 @@ class CreateShaderModuleEvent : public Event {
   CreateShaderModuleEvent(const char *name, int64_t timestamp,
                           int64_t hash_value, int64_t duration,
                           LogLevel log_level)
-      : timestamp_{"timestamp", timestamp},
+      : Event(name, log_level),
+        timestamp_{"timestamp", timestamp},
         hash_value_{"hash", hash_value},
-        duration_{"duration", duration},
-        Event(name, {&timestamp_, &hash_value_, &duration_}, log_level) {}
+        duration_{"duration", duration} {
+    InitAttributes({&timestamp_, &duration_, &hash_value_});
+  }
 
  private:
   Int64Attr timestamp_;
@@ -146,10 +152,12 @@ class CreateGraphicsPipelinesEvent : public Event {
   CreateGraphicsPipelinesEvent(const char *name, int64_t timestamp,
                                VectorInt64Attr &hash_values, int64_t duration,
                                LogLevel log_level)
-      : timestamp_{"timestamp", timestamp},
+      : Event(name, log_level),
+        timestamp_{"timestamp", timestamp},
         hash_values_(hash_values),
-        duration_{"duration", duration},
-        Event(name, {&timestamp_, &hash_values_, &duration_}, log_level) {}
+        duration_{"duration", duration} {
+    InitAttributes({&timestamp_, &hash_values_, &duration_});
+  }
 
  private:
   Int64Attr timestamp_;

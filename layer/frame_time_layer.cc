@@ -52,13 +52,15 @@ const char* StrOrEmpty(const char* str_or_null) {
 class FrameTimeEvent : public Event {
  public:
   FrameTimeEvent(const char* name, int64_t time_delta, bool started)
-      : time_delta_("frame_time", time_delta),
-        started_("started", started),
-        Event(name, {&time_delta_, &started_}, LogLevel::kHigh) {}
+      : Event(name, LogLevel::kHigh),
+        time_delta_("frame_time", time_delta),
+        started_("started", started) {
+    InitAttributes({&time_delta_, &started_});
+  }
 
  private:
-  BoolAttr started_;
   Int64Attr time_delta_;
+  BoolAttr started_;
 };
 
 class FrameTimeLayerData : public LayerDataWithEventLogger {
