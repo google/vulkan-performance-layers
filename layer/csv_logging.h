@@ -28,8 +28,12 @@ std::string ValueToCSVString(const int64_t value);
 
 std::string ValueToCSVString(const std::vector<int64_t> &values);
 
+// Converts a `DurationClock::duration` to its nanoseconds representation.
+std::string ValueToCSVString(DurationClock::duration value);
+
 // Takes an `Event` instance as an input and generates a csv string containing
-// `event`'s name and attribute values.
+// `event`'s name and attribute values. The duration values will be logged in
+// nanoseconds.
 // TODO(miladhakimi): Differentiate hashes and other integers. Hashes
 // should be displayed in hex.
 std::string EventToCSVString(Event &event);
