@@ -41,7 +41,9 @@ class MemoryUsageEvent : public Event {
   MemoryUsageEvent(const char* name, int64_t current, int64_t peak)
       : current_({"current", current}),
         peak_({"peak", peak}),
-        Event(name, {&current_, &peak_}, LogLevel::kHigh) {}
+        Event(name, LogLevel::kHigh) {
+    InitAttributes({&current_, &peak_});
+  }
 
  private:
   Int64Attr current_;
