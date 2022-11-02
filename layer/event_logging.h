@@ -23,14 +23,13 @@
 
 namespace performancelayers {
 // Set of supported value types for an attribute.
-enum ValueType { kString, kInt64, kVectorInt64, kBool, kDuration };
+enum ValueType { kBool, kDuration, kInt64, kString, kTimestamp, kVectorInt64 };
 
 // Specifies the importance of an Eventk. Events are logged based on their level
 // of importance. E.g., compile_time.csv only containsk the important compile
 // time events while event.log contains all kthe compile time events.
 enum class LogLevel { kLow, kMedium, kHigh };
 
-enum class TimeUnit { KNano, kMilli, kSec };
 // Attribute class
 //
 // An event consists of a set of attributes. Each attribute has a name that
@@ -88,10 +87,10 @@ class AttributeImpl : public Attribute {
   T value_;
 };
 
-// The base class for an attribute that keeps the duration information. To take
-// the time unit into account, the subclasses must implement the `GetValue()`
-// method such that it converts the underlying `duration` value to a specific
-// unit(nanoseconds, miliseconds, seconds, etc).
+// An attribute that keeps the duration information. The duration variable has
+// nanoseconds precision. The loggers must convert the `duration` returned by
+// `GetValue()` method to their desired time unit(nanoseconds, miliseconds,
+// seconds, etc).
 class DurationAttr : public Attribute {
  public:
   static constexpr ValueType id_ = ValueType::kDuration;
@@ -103,6 +102,23 @@ class DurationAttr : public Attribute {
 
  private:
   DurationClock::duration value_;
+};
+
+// An attribute that keeps the timestamp information as a point in time.
+// The `time_point` variable has nanoseconds precision. The loggers must convert
+// the `time_point` returned by `GetValue()` method to their desired time
+// unit(nanoseconds, miliseconds, seconds, etc).
+class TimestampAttr : public Attribute {
+ public:
+  static constexpr ValueType id_ = ValueType::kTimestamp;
+
+  TimestampAttr(const char *name, const TimestampClock::time_point &value)
+      : Attribute(name, ValueType::kDuration), value_(value) {}
+
+  TimestampClock::time_point GetValue() const { return value_; };
+
+ private:
+  TimestampClock::time_point value_;
 };
 
 using VectorInt64Attr =
@@ -152,7 +168,8 @@ class Event {
 // ```
 class CreateShaderModuleEvent : public Event {
  public:
-  CreateShaderModuleEvent(const char *name, int64_t timestamp,
+  CreateShaderModuleEvent(const char *name,
+                          TimestampClock::time_point timestamp,
                           int64_t hash_value, DurationClock::duration duration,
                           LogLevel log_level)
       : Event(name, log_level),
@@ -163,14 +180,15 @@ class CreateShaderModuleEvent : public Event {
   }
 
  private:
-  Int64Attr timestamp_;
+  TimestampAttr timestamp_;
   Int64Attr hash_value_;
   DurationAttr duration_;
 };
 
 class CreateGraphicsPipelinesEvent : public Event {
  public:
-  CreateGraphicsPipelinesEvent(const char *name, int64_t timestamp,
+  CreateGraphicsPipelinesEvent(const char *name,
+                               TimestampClock::time_point timestamp,
                                VectorInt64Attr &hash_values,
                                DurationClock::duration duration,
                                LogLevel log_level)
@@ -182,7 +200,7 @@ class CreateGraphicsPipelinesEvent : public Event {
   }
 
  private:
-  Int64Attr timestamp_;
+  TimestampAttr timestamp_;
   VectorInt64Attr hash_values_;
   DurationAttr duration_;
 };

@@ -46,6 +46,10 @@ std::string ValueToCSVString(DurationClock::duration value) {
   return std::to_string(ToInt64Nanoseconds(value));
 }
 
+std::string ValueToCSVString(TimestampClock::time_point value) {
+  return std::to_string(ToUnixNanos(value));
+}
+
 // Takes an `Event` instance as an input and generates a csv string containing
 // `event`'s name and attribute values.
 // TODO(miladhakimi): Differentiate hashes and other integers. Hashes
@@ -56,6 +60,11 @@ std::string EventToCSVString(Event &event) {
   std::ostringstream csv_str;
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
+      case ValueType::kTimestamp: {
+        csv_str << ValueToCSVString(
+            attributes[i]->cast<TimestampAttr>()->GetValue());
+        break;
+      }
       case ValueType::kDuration: {
         csv_str << ValueToCSVString(
             attributes[i]->cast<DurationAttr>()->GetValue());
