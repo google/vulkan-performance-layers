@@ -16,6 +16,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <iomanip>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
@@ -27,12 +28,6 @@
 namespace performancelayers {
 namespace {
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
-
-// Returns a quoted string.
-template <typename StrTy>
-std::string QuoteStr(StrTy&& str) {
-  return absl::StrCat("\"", std::forward<StrTy>(str), "\"");
-}
 
 // Returns event log file row prefix with ','-separated |event_type| and
 // |timestamp|.
@@ -130,18 +125,11 @@ void LayerData::LogLine(std::string_view event_type, std::string_view line,
 }
 
 void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
-                    uint64_t time) const {
-  // Quote the comma-separated hash value array to always create 2 CSV cells.
-  std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
-  std::string pipeline_and_time = CsvCat(pipeline_hash, time);
-  LogLine(event_type, pipeline_and_time);
-}
-
-void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
                     std::string_view prefix) const {
   // Quote the comma-separated hash value array to always create 2 CSV cells.
-  std::string pipeline_hash = QuoteStr(PipelineHashToString(pipeline));
-  std::string pipeline_and_content = CsvCat(pipeline_hash, prefix);
+  std::stringstream pipeline_hash_str;
+  pipeline_hash_str << std::quoted(PipelineHashToString(pipeline));
+  std::string pipeline_and_content = CsvCat(pipeline_hash_str.str(), prefix);
   LogLine(event_type, pipeline_and_content);
 }
 

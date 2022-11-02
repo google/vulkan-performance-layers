@@ -17,9 +17,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <iomanip>
 #include <optional>
+#include <sstream>
 #include <string>
 
+#include "event_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 
@@ -35,10 +38,25 @@ constexpr char kLayerDescription[] =
     "Stadia Pipeline Compile Time Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
 
-class CompileTimeLayerData : public LayerData {
+class CompileTimeEvent : public Event {
+ public:
+  CompileTimeEvent(const char* name, const std::vector<int64_t>& hash_values,
+                   DurationClock::duration duration)
+      : Event(name, LogLevel::kHigh),
+        hash_values_("hashes", hash_values),
+        duration_{"duration", duration} {
+    InitAttributes({&hash_values_, &duration_});
+  }
+
+ private:
+  VectorInt64Attr hash_values_;
+  DurationAttr duration_;
+};
+
+class CompileTimeLayerData : public LayerDataWithEventLogger {
  public:
   CompileTimeLayerData(char* log_filename)
-      : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
+      : LayerDataWithEventLogger(log_filename, "Pipeline,Compile Time (ns)") {
     LogEventOnly("compile_time_layer_init");
   }
 
@@ -168,14 +186,22 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
   DurationClock::time_point end = Now();
-  uint64_t duration = ToInt64Nanoseconds(end - start);
+  DurationClock::duration duration = end - start;
 
   LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {
     auto h = layer_data->HashComputePipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
   }
-  layer_data->Log("create_compute_pipelines", hashes, duration);
+  std::vector<int64_t> pipeline_hashes(hashes.begin(), hashes.end());
+  CompileTimeEvent event("create_compute_pipelines", pipeline_hashes, duration);
+  layer_data->LogEvent(&event);
+
+  std::stringstream pipeline_hash_str;
+  pipeline_hash_str << std::quoted(layer_data->PipelineHashToString(hashes));
+  std::string pipeline_and_time =
+      CsvCat(pipeline_hash_str.str(), ToInt64Nanoseconds(duration));
+  layer_data->LogEventOnly("create_compute_pipelines", pipeline_and_time);
   return result;
 }
 
@@ -207,14 +233,23 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
   DurationClock::time_point end = Now();
-  uint64_t duration = ToInt64Nanoseconds(end - start);
+  DurationClock::duration duration = end - start;
 
   LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {
     auto h = layer_data->HashGraphicsPipeline(pipelines[i], create_infos[i]);
     hashes.insert(hashes.end(), h.begin(), h.end());
   }
-  layer_data->Log("create_graphics_pipelines", hashes, duration);
+  std::vector<int64_t> pipeline_hashes(hashes.begin(), hashes.end());
+  CompileTimeEvent event("create_graphics_pipelines", pipeline_hashes,
+                         duration);
+  layer_data->LogEvent(&event);
+
+  std::stringstream pipeline_hash_str;
+  pipeline_hash_str << std::quoted(layer_data->PipelineHashToString(hashes));
+  std::string pipeline_and_time =
+      CsvCat(pipeline_hash_str.str(), ToInt64Nanoseconds(duration));
+  layer_data->LogEventOnly("create_graphics_pipelines", pipeline_and_time);
   return result;
 }
 
