@@ -39,9 +39,9 @@ constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 class MemoryUsageEvent : public Event {
  public:
   MemoryUsageEvent(const char* name, int64_t current, int64_t peak)
-      : current_({"current", current}),
-        peak_({"peak", peak}),
-        Event(name, LogLevel::kHigh) {
+      : Event(name, LogLevel::kHigh),
+        current_({"current", current}),
+        peak_({"peak", peak}) {
     InitAttributes({&current_, &peak_});
   }
 
