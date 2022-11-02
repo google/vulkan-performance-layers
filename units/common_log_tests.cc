@@ -23,8 +23,9 @@ namespace {
 TEST(CommonLogger, MethodCheck) {
   CommonLogger logger(nullptr);
   VectorInt64Attr hashes("hashes", {2, 3});
-  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
-                                              hashes, 4, LogLevel::kHigh);
+  CreateGraphicsPipelinesEvent pipeline_event(
+      "create_graphics_pipeline", 1, hashes, DurationClock::duration(4),
+      LogLevel::kHigh);
   logger.StartLog();
   logger.AddEvent(&pipeline_event);
   logger.Flush();

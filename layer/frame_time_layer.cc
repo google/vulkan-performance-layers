@@ -51,7 +51,8 @@ const char* StrOrEmpty(const char* str_or_null) {
 
 class FrameTimeEvent : public Event {
  public:
-  FrameTimeEvent(const char* name, int64_t time_delta, bool started)
+  FrameTimeEvent(const char* name, DurationClock::duration time_delta,
+                 bool started)
       : Event(name, LogLevel::kHigh),
         time_delta_("frame_time", time_delta),
         started_("started", started) {
@@ -59,7 +60,7 @@ class FrameTimeEvent : public Event {
   }
 
  private:
-  Int64Attr time_delta_;
+  DurationAttr time_delta_;
   BoolAttr started_;
 };
 
@@ -177,11 +178,11 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
                            const VkPresentInfoKHR* present_info)) {
   auto* layer_data = GetLayerData();
 
-  int64_t logged_delta = layer_data->GetTimeDelta();
-  if (logged_delta != -1) {
+  DurationClock::duration logged_delta = layer_data->GetTimeDelta();
+  if (logged_delta != DurationClock::duration::min()) {
     layer_data->LogEventOnly(
-        "frame_present",
-        CsvCat(logged_delta, layer_data->HasBenchmarkStarted() ? "1" : "0"));
+        "frame_present", CsvCat(ToInt64Nanoseconds(logged_delta),
+                                layer_data->HasBenchmarkStarted() ? "1" : "0"));
 
     FrameTimeEvent event("frame_present", logged_delta,
                          layer_data->HasBenchmarkStarted());

@@ -71,7 +71,7 @@ TEST(Event, AttributeCreation) {
 TEST(Event, CreateShaderModuleEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
-  const int64_t duration = 926318;
+  DurationClock::duration duration(1);
   CreateShaderModuleEvent compile_event("compile_time", timestamp_val,
                                         hash_val1, duration, LogLevel::kLow);
   EXPECT_EQ(compile_event.GetNumAttributes(), 3);
@@ -80,7 +80,7 @@ TEST(Event, CreateShaderModuleEventCreation) {
 TEST(Event, ShaderModuleEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
-  const int64_t duration = 926318;
+  DurationClock::duration duration(926318);
   CreateShaderModuleEvent compile_event("compile_time", timestamp_val,
                                         hash_val1, duration, LogLevel::kLow);
   ASSERT_EQ(compile_event.GetNumAttributes(), 3);
@@ -90,7 +90,7 @@ TEST(Event, GraphicsPipelinesEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
-  const int64_t duration = 926318;
+  DurationClock::duration duration(926318);
 
   VectorInt64Attr hashes("hashes", {hash_val1, hash_val2});
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
@@ -103,7 +103,7 @@ TEST(Event, CreateGraphicsPipelinesEventCreation) {
   const int64_t timestamp_val = 1601314732230797664;
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
-  const int64_t duration = 926318;
+  DurationClock::duration duration(926318);
   VectorInt64Attr hashes("hashes", {hash_val1, hash_val2});
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
                                               timestamp_val, hashes, duration,
@@ -121,10 +121,11 @@ TEST(EventLogger, TestLoggerCreation) {
 
 TEST(EventLogger, TestLoggerFunctionCalls) {
   VectorInt64Attr hashes("hashes", {2, 3});
-  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
-                                              hashes, 4, LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3,
-                                        LogLevel::kLow);
+  CreateGraphicsPipelinesEvent pipeline_event(
+      "create_graphics_pipeline", 1, hashes, DurationClock::duration(4),
+      LogLevel::kHigh);
+  CreateShaderModuleEvent compile_event(
+      "compile_time", 1, 2, DurationClock::duration(3), LogLevel::kLow);
   TestLogger test_logger;
 
   test_logger.AddEvent(&pipeline_event);
@@ -144,10 +145,11 @@ TEST(EventLogger, TestLoggerFunctionCalls) {
 
 TEST(EventLogger, FilterLoggerInsert) {
   VectorInt64Attr hashes("hashes", {2, 3});
-  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
-                                              hashes, 4, LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3,
-                                        LogLevel::kLow);
+  CreateGraphicsPipelinesEvent pipeline_event(
+      "create_graphics_pipeline", 1, hashes, DurationClock::duration(4),
+      LogLevel::kHigh);
+  CreateShaderModuleEvent compile_event(
+      "compile_time", 1, 2, DurationClock::duration(3), LogLevel::kLow);
   TestLogger test_logger;
   FilterLogger filter(&test_logger, LogLevel::kHigh);
   filter.AddEvent(&pipeline_event);
@@ -166,10 +168,11 @@ TEST(EventLogger, BroadcastLoggerCreation) {
 
 TEST(EventLogger, BroadcastLoggerFunctionCalls) {
   VectorInt64Attr hashes("hashes", {2, 3});
-  CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline", 1,
-                                              hashes, 4, LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event("compile_time", 1, 2, 3,
-                                        LogLevel::kLow);
+  CreateGraphicsPipelinesEvent pipeline_event(
+      "create_graphics_pipeline", 1, hashes, DurationClock::duration(4),
+      LogLevel::kHigh);
+  CreateShaderModuleEvent compile_event(
+      "compile_time", 1, 2, DurationClock::duration(3), LogLevel::kLow);
   TestLogger test_logger1, test_logger2, test_logger3;
   FilterLogger filter(&test_logger1, LogLevel::kHigh);
   BroadcastLogger broadcast1({&filter, &test_logger2});

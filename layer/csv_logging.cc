@@ -19,6 +19,7 @@
 
 #include "debug_logging.h"
 #include "event_logging.h"
+#include "layer_utils.h"
 
 namespace performancelayers {
 std::string ValueToCSVString(const bool value) { return std::to_string(value); }
@@ -41,6 +42,10 @@ std::string ValueToCSVString(const std::vector<int64_t> &values) {
   return csv_string.str();
 }
 
+std::string ValueToCSVString(DurationClock::duration value) {
+  return std::to_string(ToInt64Nanoseconds(value));
+}
+
 // Takes an `Event` instance as an input and generates a csv string containing
 // `event`'s name and attribute values.
 // TODO(miladhakimi): Differentiate hashes and other integers. Hashes
@@ -51,6 +56,11 @@ std::string EventToCSVString(Event &event) {
   std::ostringstream csv_str;
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
+      case ValueType::kDuration: {
+        csv_str << ValueToCSVString(
+            attributes[i]->cast<DurationAttr>()->GetValue());
+        break;
+      }
       case ValueType::kBool: {
         csv_str << ValueToCSVString(
             attributes[i]->cast<BoolAttr>()->GetValue());

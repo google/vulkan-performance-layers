@@ -321,17 +321,18 @@ class LayerData {
 
   // Returns the time difference between the last time this method was called
   // and now. The first call is used for initialization and does not calculate
-  // the time delta. It returns -1 indicating an invalid time delta. Use case
-  // example:
+  // the time delta. It returns DurationClock::duration::min() indicating an
+  // invalid time delta. Use case example:
   // ```c++
-  // int64_t time_delta = GetTimeDelta();
-  // if (time_delta != -1) {
-  //    std::cout << "Success: time_delta is " << time_delta << std::endl;
+  // DurationClock::duration time_delta = GetTimeDelta();
+  // if (time_delta != DurationClock::duration::min()) {
+  //    std::cout << "Success: time_delta is " << ToInt64Nanoseconds(time_delta)
+  //    << std::endl;
   // } else {
   //    std::cerr << "Error: time_delta is invalid." << std::endl;
   // }
   // ```
-  int64_t GetTimeDelta();
+  DurationClock::duration GetTimeDelta();
 
   // Logs an arbitrary |extra_content| to the event log file.
   // Doesn't write to the layer log file.
