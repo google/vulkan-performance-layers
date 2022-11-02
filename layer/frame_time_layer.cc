@@ -51,8 +51,7 @@ const char* StrOrEmpty(const char* str_or_null) {
 
 class FrameTimeEvent : public Event {
  public:
-  FrameTimeEvent(const char* name, DurationClock::duration time_delta,
-                 bool started)
+  FrameTimeEvent(const char* name, Duration time_delta, bool started)
       : Event(name, LogLevel::kHigh),
         time_delta_("frame_time", time_delta),
         started_("started", started) {

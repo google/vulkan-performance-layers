@@ -18,8 +18,31 @@
 #include <vector>
 
 #include "layer_data.h"
+#include "layer_utils.h"
 
 namespace performancelayers {
+class RuntimeEvent : public Event {
+ public:
+  RuntimeEvent(const char* name, const std::vector<int64_t>& hash_values,
+               Duration runtime, int64_t frag_shader_invocation,
+               int64_t comp_shader_invocattion)
+      : Event(name, LogLevel::kHigh),
+        hash_values_({"pipeline", hash_values}),
+        runtime_({"runtime", runtime}),
+        frag_shader_invocations_(
+            {"fragment_shader_invocations", frag_shader_invocation}),
+        comp_shader_invocations_(
+            {"compute_shader_invocations", comp_shader_invocattion}) {
+    InitAttributes({&hash_values_, &runtime_, &frag_shader_invocations_,
+                    &comp_shader_invocations_});
+  }
+
+ private:
+  VectorInt64Attr hash_values_;
+  DurationAttr runtime_;
+  Int64Attr frag_shader_invocations_;
+  Int64Attr comp_shader_invocations_;
+};
 
 // A class that contains all of the data that is needed for the functions
 // that this layer will override.
@@ -27,7 +50,7 @@ namespace performancelayers {
 // The filename for the log file will be retrieved from the environment variable
 // "VK_RUNTIME_LOG".  If it is unset, then stderr will be used as the
 // log file.
-class RuntimeLayerData : public LayerData {
+class RuntimeLayerData : public LayerDataWithEventLogger {
  private:
   struct QueryInfo {
     VkQueryPool timestamp_pool;
@@ -38,9 +61,10 @@ class RuntimeLayerData : public LayerData {
 
  public:
   explicit RuntimeLayerData(char* log_filename)
-      : LayerData(log_filename,
-                  "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
-                  "Shader Invocations") {
+      : LayerDataWithEventLogger(
+            log_filename,
+            "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
+            "Shader Invocations") {
     LogEventOnly("runtime_layer_init");
   }
 

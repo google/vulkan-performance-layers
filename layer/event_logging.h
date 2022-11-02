@@ -89,19 +89,19 @@ class AttributeImpl : public Attribute {
 
 // An attribute that keeps the duration information. The duration variable has
 // nanoseconds precision. The loggers must convert the `duration` returned by
-// `GetValue()` method to their desired time unit(nanoseconds, miliseconds,
+// `GetValue()` method to their desired time unit(nanoseconds, milliseconds,
 // seconds, etc).
 class DurationAttr : public Attribute {
  public:
   static constexpr ValueType id_ = ValueType::kDuration;
 
-  DurationAttr(const char *name, const DurationClock::duration &value)
+  DurationAttr(const char *name, const Duration &value)
       : Attribute(name, ValueType::kDuration), value_(value) {}
 
-  DurationClock::duration GetValue() const { return value_; };
+  Duration GetValue() const { return value_; };
 
  private:
-  DurationClock::duration value_ = DurationClock::duration::min();
+  Duration value_ = DurationClock::duration::min();
 };
 
 // An attribute that keeps the timestamp information as a point in time.
@@ -174,9 +174,8 @@ class Event {
 // ```
 class CreateShaderModuleEvent : public Event {
  public:
-  CreateShaderModuleEvent(const char *name,
-                          int64_t hash_value, DurationClock::duration duration,
-                          LogLevel log_level)
+  CreateShaderModuleEvent(const char *name, int64_t hash_value,
+                          Duration duration, LogLevel log_level)
       : Event(name, log_level),
         hash_value_{"hash", hash_value},
         duration_{"duration", duration} {
@@ -190,10 +189,8 @@ class CreateShaderModuleEvent : public Event {
 
 class CreateGraphicsPipelinesEvent : public Event {
  public:
-  CreateGraphicsPipelinesEvent(const char *name,
-                               VectorInt64Attr &hash_values,
-                               DurationClock::duration duration,
-                               LogLevel log_level)
+  CreateGraphicsPipelinesEvent(const char *name, VectorInt64Attr &hash_values,
+                               Duration duration, LogLevel log_level)
       : Event(name, log_level),
         hash_values_(hash_values),
         duration_{"duration", duration} {

@@ -29,7 +29,7 @@ std::string ValueToCSVString(const int64_t value);
 std::string ValueToCSVString(const std::vector<int64_t> &values);
 
 // Converts a `DurationClock::duration` to its nanoseconds representation.
-std::string ValueToCSVString(DurationClock::duration value);
+std::string ValueToCSVString(Duration value);
 
 // Converts a `TimestampClock::time_point` to its nanoseconds representation.
 std::string ValueToCSVString(TimestampClock::time_point value);

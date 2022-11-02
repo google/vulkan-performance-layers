@@ -42,8 +42,8 @@ std::string ValueToCSVString(const std::vector<int64_t> &values) {
   return csv_string.str();
 }
 
-std::string ValueToCSVString(DurationClock::duration value) {
-  return std::to_string(ToInt64Nanoseconds(value));
+std::string ValueToCSVString(Duration value) {
+  return std::to_string(value.ToNanoseconds());
 }
 
 std::string ValueToCSVString(TimestampClock::time_point value) {
