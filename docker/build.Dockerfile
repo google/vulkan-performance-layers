@@ -76,6 +76,7 @@ RUN  CXX_COMPILER="g++" \
       -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
       -DCMAKE_BUILD_TYPE="$CONFIG" \
       -DCMAKE_INSTALL_PREFIX=run \
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror -Wno-comment -Wno-return-type" \
       -DVULKAN_HEADERS_INSTALL_DIR=/dependencies/vulkan-headers-build/run \
       -DVULKAN_LOADER_GENERATED_DIR=/dependencies/Vulkan-Loader/loader/generated \
     && cmake --build . \

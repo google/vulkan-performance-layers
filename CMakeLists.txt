@@ -22,6 +22,13 @@ set(CMAKE_CXX_STANDARD 17)
 # Disable C++ exceptions.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
+# Enable warnings.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+if ( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wthread-safety")
+endif()
+
 set(FILESYSTEM_LIB_NAME stdc++fs)
 
 # Abseil requires PIC.
