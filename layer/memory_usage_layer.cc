@@ -29,9 +29,6 @@ namespace {
 // Layer book-keeping information
 // ----------------------------------------------------------------------------
 
-constexpr uint32_t kMemoryUsageLayerVersion = 1;
-constexpr char kLayerName[] = "VK_LAYER_STADIA_memory_usage";
-constexpr char kLayerDescription[] = "Stadia Memory Usage Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_MEMORY_USAGE_LOG";
 
 // An event that holds memory allocation information (current and peak
@@ -96,9 +93,15 @@ class MemoryUsageLayerData : public LayerDataWithEventLogger {
     current_allocation_size_ -= size;
   }
 
-  uint64_t GetPeakAllocationSize() const { return peak_allocation_size_; }
+  uint64_t GetPeakAllocationSize() const {
+    absl::MutexLock ReaderLock(&memory_hash_lock_);
+    return peak_allocation_size_;
+  }
 
-  uint64_t GetCurrentAllocationSize() const { return current_allocation_size_; }
+  uint64_t GetCurrentAllocationSize() const {
+    absl::MutexLock ReaderLock(&memory_hash_lock_);
+    return current_allocation_size_;
+  }
 
  private:
   mutable absl::Mutex memory_hash_lock_;

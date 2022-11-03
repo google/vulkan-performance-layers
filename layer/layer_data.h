@@ -149,6 +149,9 @@ class LayerData {
     if (out_ && out_ != stderr) {
       fclose(out_);
     }
+    if (event_log_ && event_log_ != stderr) {
+      fclose(event_log_);
+    }
   }
 
   // Records the dispatch table and instance key that is associated with

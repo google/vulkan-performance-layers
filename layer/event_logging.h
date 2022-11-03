@@ -101,7 +101,7 @@ class DurationAttr : public Attribute {
   DurationClock::duration GetValue() const { return value_; };
 
  private:
-  DurationClock::duration value_;
+  DurationClock::duration value_ = DurationClock::duration::min();
 };
 
 // An attribute that keeps the timestamp information as a point in time.
