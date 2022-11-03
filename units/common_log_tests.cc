@@ -24,8 +24,8 @@ TEST(CommonLogger, MethodCheck) {
   CommonLogger logger(nullptr);
   VectorInt64Attr hashes("hashes", {2, 3});
   CreateGraphicsPipelinesEvent pipeline_event(
-      "create_graphics_pipeline", TimestampClock::time_point::min(), hashes,
-      DurationClock::duration(4), LogLevel::kHigh);
+      "create_graphics_pipeline", hashes, DurationClock::duration(4),
+      LogLevel::kHigh);
   logger.StartLog();
   logger.AddEvent(&pipeline_event);
   logger.Flush();

@@ -25,7 +25,8 @@ std::string EventToCommonLogStr(Event &event) {
   const std::vector<Attribute *> &attributes = event.GetAttributes();
 
   std::ostringstream csv_str;
-  csv_str << event.GetEventName();
+  csv_str << event.GetEventName() << "," << event.GetCreationTime().GetName()
+          << ":" << ValueToCSVString(event.GetCreationTime().GetValue());
   csv_str << ",";
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     csv_str << attributes[i]->GetName() << ":";
