@@ -23,7 +23,7 @@ namespace {
 TEST(CSVLogger, MethodCheck) {
   CSVLogger logger("name,timestamp,pipeline,duration", nullptr);
   VectorInt64Attr hashes("hashes", {2, 3});
-  DurationClock::duration dur;
+  DurationClock::duration dur(1);
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
                                               TimestampClock::time_point::min(),
                                               hashes, dur, LogLevel::kHigh);
