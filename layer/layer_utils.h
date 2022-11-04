@@ -160,8 +160,8 @@ class FunctionInterceptor {
 //
 // Sample use:
 // 1. Define a layer-specific macro:
-//    #define SPL_MY_LAYER_FUNC(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_)   \
-//      SPL_INTERCEPTED_VULKAN_FUNC(RETURN_TYPE_, MyLayer_, FUNC_NAME_, \
+//    #define SPL_MY_LAYER_FUNC(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_)
+//      SPL_INTERCEPTED_VULKAN_FUNC(RETURN_TYPE_, MyLayer_, FUNC_NAME_,
 //                                  FUNC_ARGS_)
 //
 // 2. Define an intercepted function:

@@ -195,6 +195,7 @@ absl::StatusOr<InputBuffer> InputBuffer::Create(
     }
     default:
       assert(false && "Case not handled.");
+      return absl::InternalError("Case not handled");
   }
 }
 
