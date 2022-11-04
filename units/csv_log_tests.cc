@@ -21,11 +21,10 @@ namespace {
 // This is a simple test and only calls the methods to make sure the
 // logger doesn't crash.
 TEST(CSVLogger, MethodCheck) {
-  CSVLogger logger("name,timestamp,pipeline,duration", nullptr);
+  CSVLogger logger("pipeline,duration", nullptr);
   VectorInt64Attr hashes("hashes", {2, 3});
   DurationClock::duration dur(1);
   CreateGraphicsPipelinesEvent pipeline_event("create_graphics_pipeline",
-                                              TimestampClock::time_point::min(),
                                               hashes, dur, LogLevel::kHigh);
   logger.StartLog();
   logger.AddEvent(&pipeline_event);

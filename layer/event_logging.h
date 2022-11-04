@@ -113,7 +113,7 @@ class TimestampAttr : public Attribute {
   static constexpr ValueType id_ = ValueType::kTimestamp;
 
   TimestampAttr(const char *name, const TimestampClock::time_point &value)
-      : Attribute(name, ValueType::kDuration), value_(value) {}
+      : Attribute(name, ValueType::kTimestamp), value_(value) {}
 
   TimestampClock::time_point GetValue() const { return value_; };
 
@@ -128,12 +128,15 @@ using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
 using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
 
 // Event represents the base struct for a loggable event. It contains the
-// event's name and the level of importance. The derived structs must define and
-// initialize their own set of attributes.
+// event's name, creation time, and the level of importance. The creation time
+// is set automatically upon the creation of the event. The derived classes must
+// define and initialize their own set of attributes.
 class Event {
  public:
   Event(const char *name, LogLevel log_level)
-      : name_(name), log_level_(log_level) {}
+      : name_(name),
+        log_level_(log_level),
+        creation_time_({"timestamp", GetTimestamp()}) {}
 
   virtual ~Event() = default;
 
@@ -145,6 +148,8 @@ class Event {
 
   LogLevel GetLogLevel() const { return log_level_; }
 
+  const TimestampAttr &GetCreationTime() { return creation_time_; }
+
  protected:
   void InitAttributes(std::initializer_list<Attribute *> attrs) {
     attributes_ = {attrs.begin(), attrs.end()};
@@ -153,6 +158,7 @@ class Event {
  private:
   const char *name_;
   LogLevel log_level_;
+  TimestampAttr creation_time_;
   std::vector<Attribute *> attributes_;
 };
 
@@ -160,27 +166,24 @@ class Event {
 // Example:
 // ```c++
 //    const int64_t create_time_ns = create_end - create_start;
-//    Int64Attr timestamp("timestamp", 1234);
+//    Int64Attr invocations("invocations", 1234);
 //    Int64Attr shader_hash("hash", res.shader_hash);
-//    std::vector<Attribute *> attributes = {&shader_hash, &timestamp};
+//    std::vector<Attribute *> attributes = {&shader_hash, &invocations};
 //    CreateShaderModuleEvent("create_shader_module_ns", attributes,
 //    LogLevel::High);
 // ```
 class CreateShaderModuleEvent : public Event {
  public:
   CreateShaderModuleEvent(const char *name,
-                          TimestampClock::time_point timestamp,
                           int64_t hash_value, DurationClock::duration duration,
                           LogLevel log_level)
       : Event(name, log_level),
-        timestamp_{"timestamp", timestamp},
         hash_value_{"hash", hash_value},
         duration_{"duration", duration} {
-    InitAttributes({&timestamp_, &duration_, &hash_value_});
+    InitAttributes({&duration_, &hash_value_});
   }
 
  private:
-  TimestampAttr timestamp_;
   Int64Attr hash_value_;
   DurationAttr duration_;
 };
@@ -188,19 +191,16 @@ class CreateShaderModuleEvent : public Event {
 class CreateGraphicsPipelinesEvent : public Event {
  public:
   CreateGraphicsPipelinesEvent(const char *name,
-                               TimestampClock::time_point timestamp,
                                VectorInt64Attr &hash_values,
                                DurationClock::duration duration,
                                LogLevel log_level)
       : Event(name, log_level),
-        timestamp_{"timestamp", timestamp},
         hash_values_(hash_values),
         duration_{"duration", duration} {
-    InitAttributes({&timestamp_, &hash_values_, &duration_});
+    InitAttributes({&hash_values_, &duration_});
   }
 
  private:
-  TimestampAttr timestamp_;
   VectorInt64Attr hash_values_;
   DurationAttr duration_;
 };
