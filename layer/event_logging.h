@@ -127,13 +127,13 @@ using StringAttr = AttributeImpl<std::string, ValueType::kString>;
 using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
 using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
 
-// Event represents the base struct for a loggable event. It contains the
+// Event represents the base class for a loggable event. It contains the
 // event's name, creation time, and the level of importance. The creation time
 // is set automatically upon the creation of the event. The derived classes must
 // define and initialize their own set of attributes.
 class Event {
  public:
-  Event(const char *name, LogLevel log_level)
+  Event(const char *name, LogLevel log_level = LogLevel::kLow)
       : name_(name),
         log_level_(log_level),
         creation_time_({"timestamp", GetTimestamp()}) {}

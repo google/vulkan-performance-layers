@@ -202,6 +202,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   std::string pipeline_and_time =
       CsvCat(pipeline_hash_str.str(), ToInt64Nanoseconds(duration));
   layer_data->LogEventOnly("create_compute_pipelines", pipeline_and_time);
+
   return result;
 }
 

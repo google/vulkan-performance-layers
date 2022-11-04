@@ -235,4 +235,5 @@ void LayerData::DestroyShaderModule(VkDevice device,
   EraseShader(shader_module);
   next_proc(device, shader_module, allocator);
 }
+
 }  // namespace performancelayers
