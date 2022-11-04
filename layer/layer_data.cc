@@ -116,23 +116,6 @@ void LayerData::RemoveInstance(VkInstance instance) {
   instance_keys_map_.erase(key);
 }
 
-void LayerData::LogLine(std::string_view event_type, std::string_view line,
-                        TimestampClock::time_point timestamp) const {
-  WriteLnAndFlush(out_, line);
-  if (event_log_)
-    WriteLnAndFlush(event_log_,
-                    CsvCat(MakeEventLogPrefix(event_type, timestamp), line));
-}
-
-void LayerData::Log(std::string_view event_type, const HashVector& pipeline,
-                    std::string_view prefix) const {
-  // Quote the comma-separated hash value array to always create 2 CSV cells.
-  std::stringstream pipeline_hash_str;
-  pipeline_hash_str << std::quoted(PipelineHashToString(pipeline));
-  std::string pipeline_and_content = CsvCat(pipeline_hash_str.str(), prefix);
-  LogLine(event_type, pipeline_and_content);
-}
-
 DurationClock::duration LayerData::GetTimeDelta() {
   absl::MutexLock lock(&log_time_lock_);
   DurationClock::time_point now = Now();

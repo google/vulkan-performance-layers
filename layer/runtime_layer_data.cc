@@ -14,9 +14,13 @@
 
 #include "runtime_layer_data.h"
 
-#include <inttypes.h>
+#include <cstdint>
+#include <iomanip>
+#include <vector>
 
 #include "debug_logging.h"
+#include "event_logging.h"
+#include "layer_utils.h"
 
 namespace performancelayers {
 
@@ -131,9 +135,19 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
       // FIXME: We should adjust the elapsed units to account for the current
       // GPU frequency. Calling vkGetPhysicalDeviceProperties here causes the
       // driver to crash, however.
-      Log("pipeline_execution", GetPipelineHash(info->pipeline),
-          absl::StrCat(timestamp1 - timestamp0, ",", invocations[0], ",",
-                       invocations[1]));
+      HashVector pipeline = GetPipelineHash(info->pipeline);
+      std::vector<int64_t> hashes(pipeline.begin(), pipeline.end());
+      RuntimeEvent event("pipeline_execution", hashes,
+                         Duration::FromNanoseconds(timestamp1 - timestamp0),
+                         invocations[0], invocations[1]);
+      LogEvent(&event);
+
+      std::stringstream pipeline_hash_str;
+      pipeline_hash_str << std::quoted(PipelineHashToString(pipeline));
+      std::string pipeline_and_content =
+          CsvCat(pipeline_hash_str.str(), timestamp1 - timestamp0,
+                 invocations[0], invocations[1]);
+      LogEventOnly("pipeline_execution", pipeline_and_content);
     }
 
     (destroy_query_pool_function)(device, info->timestamp_pool, nullptr);

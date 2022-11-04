@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <ratio>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
@@ -78,6 +79,24 @@ int64_t ToInt64Nanoseconds(DurationClock::duration duration);
 
 // Converts a chrono time_point to a Unix int64 nanoseconds representation.
 int64_t ToUnixNanos(TimestampClock::time_point time);
+
+// A wrapper around `DurationClock::duration` to keep track of the time unit.
+// When the `Duration` is used, we know it's either created from a
+// `DurationClock::duration` that has nanosecond-level precision or an int that
+// represents duration in nanoseconds.
+class Duration {
+ public:
+  static Duration FromNanoseconds(int64_t nanos) {
+    return Duration(DurationClock::duration(nanos));
+  }
+
+  Duration(DurationClock::duration duration) : duration_{duration} {}
+
+  int64_t ToNanoseconds() const { return ToInt64Nanoseconds(duration_); }
+
+ private:
+  DurationClock::duration duration_;
+};
 
 // Writes |content| to |file| and flushes it.
 void WriteLnAndFlush(FILE* file, std::string_view content);

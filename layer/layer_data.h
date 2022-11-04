@@ -307,17 +307,6 @@ class LayerData {
     return pipeline_hash_map_.at(pipeline);
   }
 
-  // Logs one line to the log file, and to the event log file, if enabled.
-  void LogLine(std::string_view event_type, std::string_view line,
-               TimestampClock::time_point timestamp = GetTimestamp()) const;
-
-  // Logs an arbitrary string prefixed by the given pipeline.
-  // |event_type| is used as the key in the event log file, if enabled.
-  // |pipeline| is any series of integers that represent the pipeline.
-  // We are using the hash of each shader that is part of the pipeline.
-  void Log(std::string_view event_type, const HashVector& pipeline,
-           std::string_view prefix) const;
-
   // Returns the time difference between the last time this method was called
   // and now. The first call is used for initialization and does not calculate
   // the time delta. It returns DurationClock::duration::min() indicating an

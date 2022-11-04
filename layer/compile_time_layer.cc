@@ -41,7 +41,7 @@ constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
 class CompileTimeEvent : public Event {
  public:
   CompileTimeEvent(const char* name, const std::vector<int64_t>& hash_values,
-                   DurationClock::duration duration)
+                   Duration duration)
       : Event(name, LogLevel::kHigh),
         hash_values_("hashes", hash_values),
         duration_{"duration", duration} {
