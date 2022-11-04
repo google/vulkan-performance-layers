@@ -53,10 +53,10 @@ class CompileTimeEvent : public Event {
   DurationAttr duration_;
 };
 
-class CompileTimeLayerData : public LayerDataWithEventLogger {
+class CompileTimeLayerData : public LayerData {
  public:
   CompileTimeLayerData(char* log_filename)
-      : LayerDataWithEventLogger(log_filename, "Pipeline,Compile Time (ns)") {
+      : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
     LogEventOnly("compile_time_layer_init");
   }
 

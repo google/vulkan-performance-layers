@@ -127,9 +127,16 @@ struct hash<performancelayers::DeviceKey> {
 
 namespace performancelayers {
 
-// A class that contains all of the data that is needed for the functions
+// A class that contains all of the data needed for the functions
 // that this layer will override.
-//
+// It contains a CSV logger that logs the events to the layer's private file.
+// The constructor and destructor are responsible for starting and ending the
+// logger respectively. Sample use case for logging an event:
+// ```c++
+// LayerData layer_data(csv_filename, csv_header);
+// Event event = ...;
+// layer_data.LogEvent(&event);
+// ```
 // The filename for the log file will be retrieved from the environment variable
 // "VK_COMPILE_TIME_LOG".  If it is unset, then stderr will be used as the
 // log file.
@@ -141,17 +148,13 @@ class LayerData {
       absl::flat_hash_map<DeviceKey, VkLayerDispatchTable>;
   using HashVector = absl::InlinedVector<uint64_t, 3>;
 
-  LayerData();
-
   LayerData(char* log_filename, const char* header);
 
   virtual ~LayerData() {
-    if (out_ && out_ != stderr) {
-      fclose(out_);
-    }
     if (event_log_ && event_log_ != stderr) {
       fclose(event_log_);
     }
+    private_logger_filter_.EndLog();
   }
 
   // Records the dispatch table and instance key that is associated with
@@ -370,6 +373,12 @@ class LayerData {
   void DestroyShaderModule(VkDevice device, VkShaderModule shader_module,
                            const VkAllocationCallbacks* allocator);
 
+  // Logs the incoming event to the layer log file.
+  void LogEvent(Event* event) {
+    private_logger_filter_.AddEvent(event);
+    private_logger_filter_.Flush();
+  }
+
  private:
   mutable absl::Mutex instance_dispatch_lock_;
   // A map from a VkInstance to its VkLayerInstanceDispatchTable.
@@ -396,8 +405,6 @@ class LayerData {
   absl::flat_hash_map<VkPipeline, HashVector> pipeline_hash_map_
       ABSL_GUARDED_BY(pipeline_hash_lock_);
 
-  // A pointer to the log file to use.
-  FILE* out_ = nullptr;
   mutable absl::Mutex log_time_lock_;
   // The last time LogTimeDelta was called. A monotonic time_point to calculate
   // log time delta.
@@ -406,34 +413,6 @@ class LayerData {
 
   // Event log file appended to by multiple layers, or nullptr.
   FILE* event_log_ = nullptr;
-};
-
-// This class adds a CSV logger to the `LayerData`. The logger writes to the
-// layer's private file. The constructor and destructor are responsible for
-// starting and ending the logger respectively. Sample use case:
-// ```c++
-// LayerDataWithEventLogger layer_data(csv_filename, csv_header);
-// Event event = ...;
-// layer_data.LogEvent(&event);
-// ```
-class LayerDataWithEventLogger : public LayerData {
- public:
-  LayerDataWithEventLogger(char* log_filename, const char* header)
-      : private_logger_(CSVLogger(header, log_filename)),
-        private_logger_filter_(
-            FilterLogger(&private_logger_, LogLevel::kHigh)) {
-    private_logger_filter_.StartLog();
-  }
-
-  ~LayerDataWithEventLogger() { private_logger_filter_.EndLog(); }
-
-  // Logs the incoming `MemoryUsage` event to the layer log file.
-  void LogEvent(Event* event) {
-    private_logger_filter_.AddEvent(event);
-    private_logger_filter_.Flush();
-  }
-
- private:
   CSVLogger private_logger_;
   FilterLogger private_logger_filter_;
 };
