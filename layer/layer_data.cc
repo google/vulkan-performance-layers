@@ -76,29 +76,10 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }
 }  // namespace
 
-LayerData::LayerData() {
-  if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
-    // The underlying log file can be written to by multiple layers from
-    // multiple threads. All contentens have to be written in whole lines(s)
-    // at a time to ensure there is no unintended interleaving within a single
-    // line.
-    event_log_ = fopen(event_log_file, "a");
-  }
-}
-
-LayerData::LayerData(char* log_filename, const char* header) {
-  if (log_filename) {
-    out_ = fopen(log_filename, "w");
-    if (out_ == nullptr) {
-      SPL_LOG(ERROR) << "Failed to open " << log_filename
-                     << ", output will be to STDERR.";
-      out_ = stderr;
-    }
-  } else {
-    out_ = stderr;
-  }
-
-  WriteLnAndFlush(out_, header);
+LayerData::LayerData(char* log_filename, const char* header)
+    : private_logger_(CSVLogger(header, log_filename)),
+      private_logger_filter_(FilterLogger(&private_logger_, LogLevel::kHigh)) {
+  private_logger_filter_.StartLog();
 
   if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
     // The underlying log file can be written to by multiple layers from

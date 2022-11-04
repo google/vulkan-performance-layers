@@ -47,11 +47,10 @@ class MemoryUsageEvent : public Event {
   Int64Attr peak_;
 };
 
-class MemoryUsageLayerData : public LayerDataWithEventLogger {
+class MemoryUsageLayerData : public LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerDataWithEventLogger(log_filename,
-                                 "Current (bytes), peak (bytes)") {
+      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
     LogEventOnly("memory_usage_layer_init");
   }
 
