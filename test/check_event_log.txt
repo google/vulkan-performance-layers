@@ -6,13 +6,13 @@
 ; as expected.
 ; CHECK-DAG:  compile_time_layer_init,{{[0-9]+}}
 ; CHECK-DAG:  memory_usage_layer_init,timestamp:{{[0-9]+}}
-; CHECK-DAG:  frame_time_layer_init,{{[0-9]+}}
+; CHECK-DAG:  frame_time_layer_init,timestamp:{{[0-9]+}}
 ; CHECK:      create_shader_module_ns,{{[0-9]+}},[[SHADER1:0x[a-zA-Z0-9]+]],{{[0-9]+}}
 ; CHECK-NEXT: create_shader_module_ns,{{[0-9]+}},[[SHADER2:0x[a-zA-Z0-9]+]],{{[0-9]+}}
 ; CHECK:      shader_module_first_use_slack_ns,{{[0-9]+}},[[SHADER1]],{{[0-9]+}}
 ; CHECK-NEXT: shader_module_first_use_slack_ns,{{[0-9]+}},[[SHADER2]],{{[0-9]+}}
 ; CHECK:      create_graphics_pipelines,{{[0-9]+}},"[[[SHADER1]],[[SHADER2]]]",{{[0-9]+}}
 ; CHECK-DAG:  memory_usage_present,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}}
-; CHECK-DAG:  frame_present,{{[0-9]+}},{{[0-9]+}},{{[0-9]+}}
+; CHECK-DAG:  frame_present,timestamp:{{[0-9]+}},frame_time:{{[0-9]+}},started:{{[0-9]+}}
 ; CHECK-DAG:  memory_usage_destroy_device,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}}
-; CHECK-DAG:  frame_time_layer_exit,{{[0-9]+}},application_exit
+; CHECK-DAG:  frame_time_layer_exit,timestamp:{{[0-9]+}},finish_cause:application_exit
