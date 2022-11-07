@@ -30,6 +30,10 @@ std::string EventToCommonLogStr(Event &event) {
   for (Attribute *attribute : attributes) {
     csv_str << "," << attribute->GetName() << ":";
     switch (attribute->GetValueType()) {
+      case ValueType::kHashAttribute: {
+        csv_str << "0x" << std::hex << attribute->cast<HashAttr>()->GetValue();
+        break;
+      }
       case ValueType::kTimestamp: {
         csv_str << ValueToCSVString(
             attribute->cast<TimestampAttr>()->GetValue());

@@ -53,11 +53,41 @@ class CompileTimeEvent : public Event {
   DurationAttr duration_;
 };
 
-class CompileTimeLayerData : public LayerData {
+class ShaderModuleSlackEvent : public Event {
+ public:
+  ShaderModuleSlackEvent(const char* name, int64_t hash_value,
+                         Duration duration)
+      : Event(name),
+        shader_hash_("shader_hash", hash_value),
+        duration_("slack", duration) {
+    InitAttributes({&shader_hash_, &duration_});
+  }
+
+ private:
+  HashAttr shader_hash_;
+  DurationAttr duration_;
+};
+
+class CreateShaderEvent : public Event {
+ public:
+  CreateShaderEvent(const char* name, int64_t hash_value, Duration duration)
+      : Event(name),
+        shader_hash_("shader_hash", hash_value),
+        duration_("duration", duration) {
+    InitAttributes({&shader_hash_, &duration_});
+  }
+
+ private:
+  HashAttr shader_hash_;
+  DurationAttr duration_;
+};
+
+class CompileTimeLayerData : public LayerDataWithCommonLogger {
  public:
   CompileTimeLayerData(char* log_filename)
-      : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
-    LogEventOnly("compile_time_layer_init");
+      : LayerDataWithCommonLogger(log_filename, "Pipeline,Compile Time (ns)") {
+    Event event("compile_time_layer_init");
+    LogEvent(&event);
   }
 
   // Used to track the slack between shader module creation and its first use in
@@ -80,7 +110,7 @@ class CompileTimeLayerData : public LayerData {
   // of this shader module, adds an event with the time since shader module
   // creation.
   void RecordShaderModuleUse(VkShaderModule shader) {
-    int64_t first_use_slack_ns = -1;
+    DurationClock::duration first_use_slack_ns = DurationClock::duration::min();
 
     {
       absl::MutexLock lock(&shader_module_usage_lock_);
@@ -91,14 +121,16 @@ class CompileTimeLayerData : public LayerData {
 
       if (!usage_info.first_use_time) {
         usage_info.first_use_time = Now();
-        first_use_slack_ns = ToInt64Nanoseconds(*usage_info.first_use_time -
-                                                *usage_info.creation_end_time);
+        first_use_slack_ns =
+            *usage_info.first_use_time - *usage_info.creation_end_time;
       }
     }
-    if (first_use_slack_ns != -1) {
+
+    if (first_use_slack_ns != DurationClock::duration::min()) {
       const uint64_t hash = GetShaderHash(shader);
-      LogEventOnly("shader_module_first_use_slack_ns",
-                   CsvCat(ShaderHashToString(hash), first_use_slack_ns));
+      ShaderModuleSlackEvent event("shader_module_first_use_slack_ns", hash,
+                                   first_use_slack_ns);
+      LogEvent(&event);
     }
   }
 
@@ -196,13 +228,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   std::vector<int64_t> pipeline_hashes(hashes.begin(), hashes.end());
   CompileTimeEvent event("create_compute_pipelines", pipeline_hashes, duration);
   layer_data->LogEvent(&event);
-
-  std::stringstream pipeline_hash_str;
-  pipeline_hash_str << std::quoted(layer_data->PipelineHashToString(hashes));
-  std::string pipeline_and_time =
-      CsvCat(pipeline_hash_str.str(), ToInt64Nanoseconds(duration));
-  layer_data->LogEventOnly("create_compute_pipelines", pipeline_and_time);
-
   return result;
 }
 
@@ -245,12 +270,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   CompileTimeEvent event("create_graphics_pipelines", pipeline_hashes,
                          duration);
   layer_data->LogEvent(&event);
-
-  std::stringstream pipeline_hash_str;
-  pipeline_hash_str << std::quoted(layer_data->PipelineHashToString(hashes));
-  std::string pipeline_and_time =
-      CsvCat(pipeline_hash_str.str(), ToInt64Nanoseconds(duration));
-  layer_data->LogEventOnly("create_graphics_pipelines", pipeline_and_time);
   return result;
 }
 
@@ -268,12 +287,9 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
 
   if (res.result == VK_SUCCESS) {
     layer_data->RecordShaderModuleCreation(*shader_module, res.create_end);
-    const int64_t create_time_ns =
-        ToInt64Nanoseconds(res.create_end - res.create_start);
-    layer_data->LogEventOnly(
-        "create_shader_module_ns",
-        CsvCat(layer_data->ShaderHashToString(res.shader_hash),
-               create_time_ns));
+    CreateShaderEvent event("create_shader_module_ns", res.shader_hash,
+                            res.create_end - res.create_start);
+    layer_data->LogEvent(&event);
   }
   return res.result;
 }
