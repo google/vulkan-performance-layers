@@ -28,6 +28,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "common_logging.h"
 #include "csv_logging.h"
 #include "event_logging.h"
 #include "farmhash.h"
@@ -415,6 +416,41 @@ class LayerData {
   FILE* event_log_ = nullptr;
   CSVLogger private_logger_;
   FilterLogger private_logger_filter_;
+};
+
+// This class adds a `CommonLogger` to the `LayerData`. The logger writes to the
+// shared file. The constructor and destructor are responsible for starting and
+// ending the logger respectively. The underlying log file can be written to by
+// multiple layers from multiple threads. All contentens have to be written in
+// whole line(s) at a time to ensure there is no unintended interleaving within
+// a single line.Sample use case:
+// ```c++
+// LayerDataWithCommonLogger layer_data(csv_filename, csv_header);
+// Event event = ...;
+// layer_data.LogEvent(&event);
+// ```
+class LayerDataWithCommonLogger : public LayerData {
+ public:
+  static constexpr char kEventLogFileEnvVar[] =
+      "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
+
+  LayerDataWithCommonLogger(char* log_filename, const char* header)
+      : LayerData(log_filename, header),
+        common_logger_(getenv(kEventLogFileEnvVar)) {
+    common_logger_.StartLog();
+  }
+
+  ~LayerDataWithCommonLogger() { common_logger_.EndLog(); }
+
+  // Logs the incoming event to the layer log file.
+  void LogEvent(Event* event) {
+    LayerData::LogEvent(event);
+    common_logger_.AddEvent(event);
+    common_logger_.Flush();
+  }
+
+ private:
+  CommonLogger common_logger_;
 };
 
 }  // namespace performancelayers

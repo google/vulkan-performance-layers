@@ -47,11 +47,13 @@ class MemoryUsageEvent : public Event {
   Int64Attr peak_;
 };
 
-class MemoryUsageLayerData : public LayerData {
+class MemoryUsageLayerData : public LayerDataWithCommonLogger {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
-    LogEventOnly("memory_usage_layer_init");
+      : LayerDataWithCommonLogger(log_filename,
+                                  "Current (bytes), peak (bytes)") {
+    Event event("memory_usage_layer_init");
+    LogEvent(&event);
   }
 
   void RecordAllocateMemory(VkDevice device, VkDeviceMemory memory,
@@ -198,12 +200,9 @@ SPL_MEMORY_USAGE_LAYER_FUNC(void, DestroyDevice,
   // Remove memory allocation records for the device being destroyed.
   layer_data->RecordDestroyDeviceMemory(device);
 
-  int64_t current_alloc = layer_data->GetCurrentAllocationSize();
-  int64_t peak_alloc = layer_data->GetPeakAllocationSize();
-  layer_data->LogEventOnly("memory_usage_destroy_device",
-                           CsvCat(current_alloc, peak_alloc));
-  MemoryUsageEvent event("memory_usage_destroy_device", current_alloc,
-                         peak_alloc);
+  MemoryUsageEvent event("memory_usage_destroy_device",
+                         layer_data->GetCurrentAllocationSize(),
+                         layer_data->GetPeakAllocationSize());
   layer_data->LogEvent(&event);
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
@@ -217,12 +216,9 @@ SPL_MEMORY_USAGE_LAYER_FUNC(VkResult, QueuePresentKHR,
                             (VkQueue queue,
                              const VkPresentInfoKHR* present_info)) {
   MemoryUsageLayerData* layer_data = GetLayerData();
-
-  int64_t current_alloc = layer_data->GetCurrentAllocationSize();
-  int64_t peak_alloc = layer_data->GetPeakAllocationSize();
-  layer_data->LogEventOnly("memory_usage_present",
-                           CsvCat(current_alloc, peak_alloc));
-  MemoryUsageEvent event("memory_usage_present", current_alloc, peak_alloc);
+  MemoryUsageEvent event("memory_usage_present",
+                         layer_data->GetCurrentAllocationSize(),
+                         layer_data->GetPeakAllocationSize());
   layer_data->LogEvent(&event);
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       queue, &VkLayerDispatchTable::QueuePresentKHR);

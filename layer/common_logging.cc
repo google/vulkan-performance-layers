@@ -27,49 +27,46 @@ std::string EventToCommonLogStr(Event &event) {
   std::ostringstream csv_str;
   csv_str << event.GetEventName() << "," << event.GetCreationTime().GetName()
           << ":" << ValueToCSVString(event.GetCreationTime().GetValue());
-  csv_str << ",";
-  for (size_t i = 0, e = attributes.size(); i != e; ++i) {
-    csv_str << attributes[i]->GetName() << ":";
-    switch (attributes[i]->GetValueType()) {
+  for (Attribute *attribute : attributes) {
+    csv_str << "," << attribute->GetName() << ":";
+    switch (attribute->GetValueType()) {
       case ValueType::kTimestamp: {
         csv_str << ValueToCSVString(
-            attributes[i]->cast<TimestampAttr>()->GetValue());
+            attribute->cast<TimestampAttr>()->GetValue());
         break;
       }
       case ValueType::kDuration: {
         csv_str << ValueToCSVString(
-            attributes[i]->cast<DurationAttr>()->GetValue());
+            attribute->cast<DurationAttr>()->GetValue());
         break;
       }
       case ValueType::kBool: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<BoolAttr>()->GetValue());
+        csv_str << ValueToCSVString(attribute->cast<BoolAttr>()->GetValue());
         break;
       }
       case ValueType::kInt64: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<Int64Attr>()->GetValue());
+        csv_str << ValueToCSVString(attribute->cast<Int64Attr>()->GetValue());
         break;
       }
       case ValueType::kString: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<StringAttr>()->GetValue());
+        csv_str << ValueToCSVString(attribute->cast<StringAttr>()->GetValue());
         break;
       }
       case ValueType::kVectorInt64: {
         csv_str << ValueToCSVString(
-            attributes[i]->cast<VectorInt64Attr>()->GetValue());
+            attribute->cast<VectorInt64Attr>()->GetValue());
         break;
       }
     }
-    if (i + 1 != e) csv_str << ",";
   }
   return csv_str.str();
 }
 
 CommonLogger::CommonLogger(const char *filename) {
   if (filename) {
-    out_ = fopen(filename, "w");
+    // Since multiple layers open the same file and write to it at the same
+    // time, it's opened in the append mode.
+    out_ = fopen(filename, "a");
     if (!out_) {
       SPL_LOG(ERROR) << "Failed to open " << filename
                      << ". Using stderr as the alternative output.";
