@@ -63,15 +63,37 @@ class FrameTimeEvent : public Event {
   BoolAttr started_;
 };
 
-class FrameTimeLayerData : public LayerData {
+// Frametime exit event. Both `application_exit` and `terminated` events can be
+// generated with this `Event`.
+class FrameTimeExitEvent : public Event {
+ public:
+  FrameTimeExitEvent(const char* name, const std::string& cause)
+      : Event(name), cause_("finish_cause", cause) {
+    InitAttributes({&cause_});
+  }
+
+  FrameTimeExitEvent(const char* name, const std::string& cause, int64_t frame)
+      : Event(name, LogLevel::kHigh),
+        cause_({"finish_cause", cause}),
+        frame_({"frame", frame}) {
+    InitAttributes({&cause_, &frame_});
+  }
+
+ private:
+  StringAttr cause_;
+  Int64Attr frame_ = Int64Attr("frame", -1);
+};
+class FrameTimeLayerData : public LayerDataWithCommonLogger {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
                      const char* benchmark_watch_filename,
                      const char* benchmark_start_string)
-      : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
+      : LayerDataWithCommonLogger(log_filename,
+                                  "Frame Time (ns),Benchmark State"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
         benchmark_start_pattern_(StrOrEmpty(benchmark_start_string)) {
-    LogEventOnly("frame_time_layer_init");
+    Event event("frame_time_layer_init");
+    LogEvent(&event);
     if (!benchmark_watch_filename || strlen(benchmark_watch_filename) == 0)
       return;
 
@@ -159,7 +181,8 @@ bool FrameTimeLayerData::HasBenchmarkStarted() {
 
 FrameTimeLayerData::~FrameTimeLayerData() {
   CreateFinishIndicatorFile("APPLICATION_EXIT");
-  LogEventOnly("frame_time_layer_exit", "application_exit");
+  FrameTimeExitEvent exit_event("frame_time_layer_exit", "application_exit");
+  LogEvent(&exit_event);
 }
 
 // Use this macro to define all vulkan functions intercepted by the layer.
@@ -178,10 +201,6 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
 
   DurationClock::duration logged_delta = layer_data->GetTimeDelta();
   if (logged_delta != DurationClock::duration::min()) {
-    layer_data->LogEventOnly(
-        "frame_present", CsvCat(ToInt64Nanoseconds(logged_delta),
-                                layer_data->HasBenchmarkStarted() ? "1" : "0"));
-
     FrameTimeEvent event("frame_present", logged_delta,
                          layer_data->HasBenchmarkStarted());
     layer_data->LogEvent(&event);
@@ -198,8 +217,10 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
     // _Exit will bring down the parent Vulkan application without running any
     // cleanup. Resources will be reclaimed by the operating system.
     CreateFinishIndicatorFile("FRAME_TIME_LAYER_TERMINATED");
-    layer_data->LogEventOnly("frame_time_layer_exit",
-                             absl::StrCat("terminated,frame:", frames_elapsed));
+    FrameTimeExitEvent exit_event("frame_time_layer_exit", "terminated",
+                                  frames_elapsed);
+    layer_data->LogEvent(&exit_event);
+
     std::_Exit(99);
   }
 
