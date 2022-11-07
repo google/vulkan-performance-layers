@@ -63,7 +63,7 @@ class FrameTimeEvent : public Event {
   BoolAttr started_;
 };
 
-// Frametime exit event. Both `application_exit` and `terminated` events can be
+// Frametime exit event. Both `application_exit` and `terminated` causes can be
 // generated with this `Event`.
 class FrameTimeExitEvent : public Event {
  public:
@@ -83,6 +83,7 @@ class FrameTimeExitEvent : public Event {
   StringAttr cause_;
   Int64Attr frame_ = Int64Attr("frame", -1);
 };
+
 class FrameTimeLayerData : public LayerDataWithCommonLogger {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,

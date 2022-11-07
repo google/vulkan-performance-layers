@@ -60,6 +60,11 @@ std::string EventToCSVString(Event &event) {
   std::ostringstream csv_str;
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
+      case kHashAttribute: {
+        csv_str << "0x" << std::hex
+                << attributes[i]->cast<HashAttr>()->GetValue();
+        break;
+      }
       case ValueType::kTimestamp: {
         csv_str << ValueToCSVString(
             attributes[i]->cast<TimestampAttr>()->GetValue());
