@@ -141,13 +141,6 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
                          Duration::FromNanoseconds(timestamp1 - timestamp0),
                          invocations[0], invocations[1]);
       LogEvent(&event);
-
-      std::stringstream pipeline_hash_str;
-      pipeline_hash_str << std::quoted(PipelineHashToString(pipeline));
-      std::string pipeline_and_content =
-          CsvCat(pipeline_hash_str.str(), timestamp1 - timestamp0,
-                 invocations[0], invocations[1]);
-      LogEventOnly("pipeline_execution", pipeline_and_content);
     }
 
     (destroy_query_pool_function)(device, info->timestamp_pool, nullptr);

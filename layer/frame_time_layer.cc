@@ -73,9 +73,7 @@ class FrameTimeExitEvent : public Event {
   }
 
   FrameTimeExitEvent(const char* name, const std::string& cause, int64_t frame)
-      : Event(name, LogLevel::kHigh),
-        cause_({"finish_cause", cause}),
-        frame_({"frame", frame}) {
+      : Event(name), cause_({"finish_cause", cause}), frame_({"frame", frame}) {
     InitAttributes({&cause_, &frame_});
   }
 
