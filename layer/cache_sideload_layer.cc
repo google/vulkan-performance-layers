@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -20,18 +21,48 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "debug_logging.h"
+#include "event_logging.h"
 #include "input_buffer.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 
 namespace performancelayers {
 namespace {
-class CacheSideloadLayerData : public LayerData {
+class MergeCacheResultEvent : public Event {
+ public:
+  MergeCacheResultEvent(const char* name, const std::string& result)
+      : Event(name), result_("result", result) {
+    InitAttributes({&result_});
+  }
+
+ private:
+  StringAttr result_;
+};
+
+class CreateCacheEvent : public Event {
+ public:
+  CreateCacheEvent(const char* name, const std::string& path, int64_t data_size,
+                   int64_t cache_size)
+      : Event(name),
+        path_("path_", path),
+        data_size_("initial_data_size", data_size),
+        cache_size_("cache_size", cache_size) {
+    InitAttributes({&path_, &data_size_, &cache_size_});
+  }
+
+ private:
+  StringAttr path_;
+  Int64Attr data_size_;
+  Int64Attr cache_size_;
+};
+
+class CacheSideloadLayerData : public LayerDataWithCommonLogger {
  public:
   CacheSideloadLayerData(const char* pipeline_cache_path)
-      : LayerData(nullptr, ""),
+      : LayerDataWithCommonLogger(nullptr, ""),
         implicit_pipeline_cache_path_(pipeline_cache_path) {
-    LogEventOnly("cache_sideload_layer_init");
+    Event event("cache_sideload_layer_init");
+    LogEvent(&event);
   }
 
   VkPipelineCache GetImplicitDeviceCache(VkDevice) const;
@@ -120,10 +151,10 @@ VkPipelineCache CacheSideloadLayerData::CreateImplicitDeviceCache(
     }
   }
 
-  const std::string cache_size_info =
-      absl::StrCat("cache_size: ", cache_size_or_none.value_or(0));
-  LogEventOnly("create_implicit_pipeline_cache",
-               CsvCat(path_info, initial_size_info, cache_size_info));
+  CreateCacheEvent event("create_implicit_pipeline_cache",
+                         implicit_pipeline_cache_path_, initial_data_size,
+                         cache_size_or_none.value_or(0));
+  LogEvent(&event);
 
   return new_cache;
 }
@@ -164,10 +195,6 @@ std::optional<InputBuffer> CacheSideloadLayerData::ReadImplicitCacheFile() {
   return std::move(*cache_file_or_status);
 }
 
-}  // namespace
-}  // namespace performancelayers
-
-namespace {
 
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
@@ -303,12 +330,14 @@ SPL_CACHE_SIDELOAD_LAYER_FUNC(VkResult, CreatePipelineCache,
       const VkResult merge_result =
           merge_cache_proc(device, *pipeline_cache, 1, &implicit_cache);
 
-      const std::string merge_result_str = absl::StrCat(
-          "result: ", (merge_result == VK_SUCCESS) ? "success" : "failure");
+      const std::string merge_result_str =
+          (merge_result == VK_SUCCESS) ? "success" : "failure";
+
       SPL_LOG(INFO) << "Application pipeline cache merge with implicit cache ("
                     << merge_result_str << ")";
-      layer_data->LogEventOnly("merge_implicit_pipeline_cache",
-                               merge_result_str);
+      MergeCacheResultEvent event("merge_implicit_pipeline_cache",
+                                  merge_result_str);
+      layer_data->LogEvent(&event);
 
       return merge_result;
     }
@@ -497,3 +526,5 @@ SPL_LAYER_ENTRY_POINT SPL_CACHE_SIDELOAD_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr);
   return next_get_proc_addr(instance, name);
 }
+
+}  // namespace performancelayers
