@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "event_logging.h"
 #include "layer_data.h"
 #include "layer_utils.h"
 
@@ -50,7 +51,7 @@ class RuntimeEvent : public Event {
 // The filename for the log file will be retrieved from the environment variable
 // "VK_RUNTIME_LOG".  If it is unset, then stderr will be used as the
 // log file.
-class RuntimeLayerData : public LayerData {
+class RuntimeLayerData : public LayerDataWithCommonLogger {
  private:
   struct QueryInfo {
     VkQueryPool timestamp_pool;
@@ -61,10 +62,12 @@ class RuntimeLayerData : public LayerData {
 
  public:
   explicit RuntimeLayerData(char* log_filename)
-      : LayerData(log_filename,
-                  "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
-                  "Shader Invocations") {
-    LogEventOnly("runtime_layer_init");
+      : LayerDataWithCommonLogger(
+            log_filename,
+            "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
+            "Shader Invocations") {
+    Event event("runtime_layer_init");
+    LogEvent(&event);
   }
 
   // Records |pipeline| as the latest pipeline that has been bound to
