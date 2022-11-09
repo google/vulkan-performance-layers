@@ -27,17 +27,61 @@ To see full command line options documentation, run:
   plot_timeline.py --help
 """
 
+import re
+import pandas as pd
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
 import argparse
 import csv
 import matplotlib
-matplotlib.use('Agg') # Allows to work without X dispaly
-import matplotlib.pyplot as plt
-import numpy as np
-import sys
-import pandas as pd
+matplotlib.use('Agg')  # Allows to work without X dispaly
 
 nanos_per_second = 10**9
 nanos_per_milli = 10**6
+
+
+class FrameEvent:
+    """
+    A datastructure containing Frame event data
+
+    A frame event starts with `frame_present` and contains frame_time
+    and the frame state information.
+    """
+
+    def __init__(self, timestamp: int, event_str: str):
+        self.timestamp = timestamp
+
+        pattern = r',frame_time:(\d+),started:([0-1])'
+        attributes = re.match(pattern, event_str)
+        assert (attributes)
+        attributes = attributes.groups()
+        assert (len(attributes) >= 2)
+
+        self.frame_time = int(attributes[0])
+        self.started = int(attributes[1])
+
+
+class PipelineEvent:
+    """
+    A datastructure containing Pipline event data.
+
+    A Pipeline event starts with `create_graphics_pipelines` or
+    `create_compute_pipelines` and contains the shader hashes and pipline duration.
+    """
+
+    def __init__(self, timestamp: int, event_str: str):
+        self.timestamp = timestamp
+
+        pattern = r',hashes:"\[((0x[a-f0-9]*)+,*)+\]",duration:(\d+)'
+        attributes = re.match(pattern, event_str)
+        assert (attributes)
+        attributes = attributes.groups()
+        assert (len(attributes) >= 2)
+
+        self.hashes = attributes[:-1]
+        self.duration = int(attributes[-1])
+
 
 def get_frames_per_second(frame_present_events):
     """
@@ -46,8 +90,8 @@ def get_frames_per_second(frame_present_events):
     that second, and states[i] state in that second.
     """
     num_events = len(frame_present_events)
-    df = pd.DataFrame({'V': [int(e[2]) for e in frame_present_events]},
-                      index = [pd.Timedelta(int(e[0])) for e in frame_present_events])
+    df = pd.DataFrame({'V': [e.started for e in frame_present_events]}, index=[
+                      pd.Timedelta(e.timestamp) for e in frame_present_events])
     fps = list(df.rolling('1s').count()['V'])
     assert len(fps) == num_events
 
@@ -56,13 +100,14 @@ def get_frames_per_second(frame_present_events):
     states = np.zeros(num_events, dtype=np.int32)
 
     for i, event in enumerate(frame_present_events):
-        timepoint, _frame_time, state = event[0], int(event[1]), int(event[2])
+        timepoint, _frame_time, state = event.timestamp, event.frame_time, event.started
         elapsed_seconds = timepoint / nanos_per_second
         xs[i] = elapsed_seconds
         ys[i] = fps[i]
         states[i] = state
 
     return xs, ys, states
+
 
 def split_by_state(xs, ys, states):
     """
@@ -82,6 +127,7 @@ def split_by_state(xs, ys, states):
 
     return res
 
+
 def get_pipeline_creation_times(create_pipeline_events):
     """
     Returns a pair of equal-length arrays that map times of pipeline creations
@@ -91,12 +137,12 @@ def get_pipeline_creation_times(create_pipeline_events):
     ys = []
 
     for event in create_pipeline_events:
-        timepoint, _hash, creation_time_nanos = event[0], event[1], int(event[2])
-        elapsed_seconds = timepoint / nanos_per_second
+        elapsed_seconds = event.timestamp / nanos_per_second
         xs.append(elapsed_seconds)
-        ys.append(creation_time_nanos / nanos_per_milli)
+        ys.append(event.duration / nanos_per_milli)
 
     return xs, ys
+
 
 def plot_frames_per_second(ax, events_by_type):
     ax.set_xlabel('Time Since Start [s]')
@@ -111,6 +157,7 @@ def plot_frames_per_second(ax, events_by_type):
 
     ax.legend(loc='upper right')
     ax.grid()
+
 
 def plot_pipeline_creations(ax, events_by_type):
     ax.set_ylabel('Creation Time [ms]')
@@ -128,6 +175,25 @@ def plot_pipeline_creations(ax, events_by_type):
 
     ax.legend(loc='lower right')
     return max_creation_time_millis
+
+
+def parse_event_log(log: str) -> (str, int, str):
+    """
+    Returns a triple containing event name, timestamp, and rest of event which
+    may be empty or contain attributes.
+    log format sample:
+    sample1: `compile_time_layer_init,timestamp:123`
+    sample2: `frame_present,timestamp:1667942408738000395,frame_time:9707270,started:1`
+    """
+    # This pattern captures `event_type`, `timestamp`, and the rest of the event.
+    pattern = r'(\w+),timestamp:(\d+)(.*)'
+    result = re.match(pattern, log).groups()
+    assert (len(result) >= 2)
+    event_type = result[0]
+    timestamp = int(result[1])
+    attributes = result[2]
+    return event_type, timestamp, attributes
+
 
 def main():
     parser = argparse.ArgumentParser(description='Processed an event log file and outputs a timelien of events')
@@ -157,11 +223,8 @@ def main():
         events_by_type = {}
 
         with open(eventlog_filename) as input_file:
-            input_csv = csv.reader(input_file)
-            for i, row in enumerate(input_csv):
-                assert len(row) >= 2
-                event_type = row[0]
-                event_timestamp = int(row[1])
+            for i, row in enumerate(input_file):
+                event_type, event_timestamp, event_attributes = parse_event_log(row)
                 if i == 0:
                     start_timestamp = event_timestamp
                 if event_type not in events_by_type:
@@ -169,7 +232,12 @@ def main():
 
                 nanos_since_start = event_timestamp - start_timestamp
                 duration_nanos = max(nanos_since_start, duration_nanos)
-                events_by_type[event_type].append((nanos_since_start,) + tuple(row[2:]))
+                if event_type == 'frame_present':
+                    events_by_type[event_type].append(FrameEvent(nanos_since_start, event_attributes))
+                elif event_type == 'create_graphics_pipelines' or event_type == 'create_compute_pipelines':
+                    events_by_type[event_type].append(PipelineEvent(nanos_since_start, event_attributes))
+                else:
+                    events_by_type[event_type].append((nanos_since_start,) + (event_attributes,))
 
         duration_seconds = duration_nanos / nanos_per_second
         max_duration_seconds = max(max_duration_seconds, duration_seconds)
