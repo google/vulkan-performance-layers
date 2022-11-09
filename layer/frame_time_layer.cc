@@ -82,13 +82,12 @@ class FrameTimeExitEvent : public Event {
   Int64Attr frame_ = Int64Attr("frame", -1);
 };
 
-class FrameTimeLayerData : public LayerDataWithCommonLogger {
+class FrameTimeLayerData : public LayerData {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
                      const char* benchmark_watch_filename,
                      const char* benchmark_start_string)
-      : LayerDataWithCommonLogger(log_filename,
-                                  "Frame Time (ns),Benchmark State"),
+      : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
         benchmark_start_pattern_(StrOrEmpty(benchmark_start_string)) {
     Event event("frame_time_layer_init");
