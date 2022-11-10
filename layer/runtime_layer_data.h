@@ -99,6 +99,10 @@ class RuntimeLayerData : public LayerData {
   // the time spent running each pipeline.
   void LogAndRemoveQueryPools();
 
+  // Removes queries that contain the freed command buffers.
+  void RemoveQueries(const VkCommandBuffer* cmd_buff_list,
+                     uint32_t cmd_buff_count);
+
  private:
   mutable absl::Mutex cmd_buf_to_pipeline_lock_;
   // The map from a command buffer to its bound pipeline.

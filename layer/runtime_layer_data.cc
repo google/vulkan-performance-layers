@@ -152,4 +152,19 @@ void RuntimeLayerData::LogAndRemoveQueryPools() {
   }
 }
 
+void RuntimeLayerData::RemoveQueries(const VkCommandBuffer* cmd_buff_list,
+                                     uint32_t cmd_buff_count) {
+  absl::MutexLock lock(&timestamp_queries_lock_);
+  for (size_t i = 0; i < cmd_buff_count; ++i) {
+    for (auto it = timestamp_queries_.begin();
+         it != timestamp_queries_.end();) {
+      if (it->command_buffer == cmd_buff_list[i]) {
+        it = timestamp_queries_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+}
+
 }  // namespace performancelayers
