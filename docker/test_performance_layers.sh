@@ -17,7 +17,7 @@ readonly LAYER_DIR="${INSTALL_DIR}/run/layer"
 readonly OUTPUT_DIR="$(mktemp -d)"
 
 declare -a output_files
-output_files=("compile_time.csv" "memory_usage.csv"
+output_files=("compile_time.csv" "run_time.csv" "memory_usage.csv"
               "frame_time.csv" "events.log")
 
 #######################################
@@ -60,9 +60,12 @@ for file in "${output_files[@]}"; do
   check_layer_log "${file}"
 done
 
-# Check that log file's contents matches what is expected.
+# Check that log file's contents match what is expected.
 FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" --input-file \
   "${OUTPUT_DIR}"/compile_time.csv
+
+FileCheck "${PROJECT_ROOT_DIR}/test/check_run_time_log.txt" --input-file \
+  "${OUTPUT_DIR}"/run_time.csv
 
 FileCheck "${PROJECT_ROOT_DIR}/test/check_memory_usage_log.txt" --input-file \
   "${OUTPUT_DIR}"/memory_usage.csv
