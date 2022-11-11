@@ -29,14 +29,6 @@ namespace performancelayers {
 namespace {
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
 
-// Returns event log file row prefix with ','-separated |event_type| and
-// |timestamp|.
-std::string MakeEventLogPrefix(
-    std::string_view event_type,
-    TimestampClock::time_point timestamp = GetTimestamp()) {
-  return CsvCat(event_type, ToUnixNanos(timestamp));
-}
-
 // Returns the first create info of type
 // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO in the chain |create_info|.
 // Returns |nullptr| if no info is found.
@@ -78,16 +70,10 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 
 LayerData::LayerData(char* log_filename, const char* header)
     : private_logger_(CSVLogger(header, log_filename)),
-      private_logger_filter_(FilterLogger(&private_logger_, LogLevel::kHigh)) {
-  private_logger_filter_.StartLog();
-
-  if (const char* event_log_file = getenv(kEventLogFileEnvVar)) {
-    // The underlying log file can be written to by multiple layers from
-    // multiple threads. All contentens have to be written in whole lines(s)
-    // at a time to ensure there is no unintended interleaving within a single
-    // line.
-    event_log_ = fopen(event_log_file, "a");
-  }
+      private_logger_filter_(FilterLogger(&private_logger_, LogLevel::kHigh)),
+      common_logger_(getenv(kEventLogFileEnvVar)),
+      broadcast_logger_({&private_logger_filter_, &common_logger_}) {
+  broadcast_logger_.StartLog();
 }
 
 void LayerData::RemoveInstance(VkInstance instance) {
@@ -109,16 +95,6 @@ DurationClock::duration LayerData::GetTimeDelta() {
 
   last_log_time_ = now;
   return logged_delta;
-}
-
-void LayerData::LogEventOnly(std::string_view event_type,
-                             std::string_view extra_content) const {
-  if (event_log_) {
-    const std::string prefix = MakeEventLogPrefix(event_type);
-    WriteLnAndFlush(event_log_, extra_content.empty()
-                                    ? prefix
-                                    : CsvCat(prefix, extra_content));
-  }
 }
 
 std::string LayerData::ShaderHashToString(uint64_t hash) {

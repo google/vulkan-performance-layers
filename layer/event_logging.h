@@ -275,8 +275,11 @@ class FilterLogger : public EventLogger {
 // A subclass of `EventLogger` that forwards all events, start/end, and flushes
 // to all its children. Example: `
 // ```c++
-// BroadCastLogger({&event_logger1,&event_logger2});
+// BroadCastLogger logger({&event_logger1,&event_logger2});
+// Event event = ...;
+// logger.AddEvent(&event);
 // ```
+// `logger` forwards the event to both `event_logger1` and `event_logger2`.
 class BroadcastLogger : public EventLogger {
  public:
   BroadcastLogger(std::vector<EventLogger *> loggers) : loggers_(loggers) {}

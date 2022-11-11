@@ -56,10 +56,10 @@ class CreateCacheEvent : public Event {
   Int64Attr cache_size_;
 };
 
-class CacheSideloadLayerData : public LayerDataWithCommonLogger {
+class CacheSideloadLayerData : public LayerData {
  public:
   CacheSideloadLayerData(const char* pipeline_cache_path)
-      : LayerDataWithCommonLogger(nullptr, ""),
+      : LayerData(nullptr, ""),
         implicit_pipeline_cache_path_(pipeline_cache_path) {
     Event event("cache_sideload_layer_init");
     LogEvent(&event);

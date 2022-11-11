@@ -41,12 +41,6 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
-// Joins all |args| with the ',' CSV separator.
-template <typename... Args>
-std::string CsvCat(Args&&... args) {
-  return absl::StrJoin(std::forward_as_tuple(std::forward<Args>(args)...), ",");
-}
-
 // Base class for Vulkan dispatchable handle wrappers. Exposes the underlying
 // key to derived classes and implements basic operations like key comparisons
 // and hash.
@@ -130,17 +124,18 @@ namespace performancelayers {
 
 // A class that contains all of the data needed for the functions
 // that this layer will override.
-// It contains a CSV logger that logs the events to the layer's private file.
-// The constructor and destructor are responsible for starting and ending the
-// logger respectively. Sample use case for logging an event:
+// It contains two loggers that log the events to the layer's private and the
+// common files. The constructor and destructor are responsible for starting and
+// ending the loggers respectively. Sample use case for logging an event:
 // ```c++
 // LayerData layer_data(csv_filename, csv_header);
 // Event event = ...;
 // layer_data.LogEvent(&event);
 // ```
-// The filename for the log file will be retrieved from the environment variable
-// "VK_COMPILE_TIME_LOG".  If it is unset, then stderr will be used as the
-// log file.
+// The `event` end up in the private or common file (or both) based on its log
+// level. The filename for the common log file will be retrieved from the
+// environment variable "VK_COMPILE_TIME_LOG".  If it is unset, then stderr will
+// be used as the log file.
 class LayerData {
  public:
   using InstanceDispatchMap =
@@ -155,7 +150,7 @@ class LayerData {
     if (event_log_ && event_log_ != stderr) {
       fclose(event_log_);
     }
-    private_logger_filter_.EndLog();
+    broadcast_logger_.EndLog();
   }
 
   // Records the dispatch table and instance key that is associated with
@@ -326,11 +321,6 @@ class LayerData {
   // ```
   DurationClock::duration GetTimeDelta();
 
-  // Logs an arbitrary |extra_content| to the event log file.
-  // Doesn't write to the layer log file.
-  void LogEventOnly(std::string_view event_type,
-                    std::string_view extra_content = "") const;
-
   // Returns a string representation of |hash|.
   static std::string ShaderHashToString(uint64_t hash);
 
@@ -376,8 +366,8 @@ class LayerData {
 
   // Logs the incoming event to the layer log file.
   void LogEvent(Event* event) {
-    private_logger_filter_.AddEvent(event);
-    private_logger_filter_.Flush();
+    broadcast_logger_.AddEvent(event);
+    broadcast_logger_.Flush();
   }
 
  private:
@@ -416,41 +406,8 @@ class LayerData {
   FILE* event_log_ = nullptr;
   CSVLogger private_logger_;
   FilterLogger private_logger_filter_;
-};
-
-// This class adds a `CommonLogger` to the `LayerData`. The logger writes to the
-// shared file. The constructor and destructor are responsible for starting and
-// ending the logger respectively. The underlying log file can be written to by
-// multiple layers from multiple threads. All contentens have to be written in
-// whole line(s) at a time to ensure there is no unintended interleaving within
-// a single line.Sample use case:
-// ```c++
-// LayerDataWithCommonLogger layer_data(csv_filename, csv_header);
-// Event event = ...;
-// layer_data.LogEvent(&event);
-// ```
-class LayerDataWithCommonLogger : public LayerData {
- public:
-  static constexpr char kEventLogFileEnvVar[] =
-      "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
-
-  LayerDataWithCommonLogger(char* log_filename, const char* header)
-      : LayerData(log_filename, header),
-        common_logger_(getenv(kEventLogFileEnvVar)) {
-    common_logger_.StartLog();
-  }
-
-  ~LayerDataWithCommonLogger() { common_logger_.EndLog(); }
-
-  // Logs the incoming event to the layer log file.
-  void LogEvent(Event* event) {
-    LayerData::LogEvent(event);
-    common_logger_.AddEvent(event);
-    common_logger_.Flush();
-  }
-
- private:
   CommonLogger common_logger_;
+  BroadcastLogger broadcast_logger_;
 };
 
 }  // namespace performancelayers

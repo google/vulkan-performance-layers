@@ -51,7 +51,7 @@ class RuntimeEvent : public Event {
 // The filename for the log file will be retrieved from the environment variable
 // "VK_RUNTIME_LOG".  If it is unset, then stderr will be used as the
 // log file.
-class RuntimeLayerData : public LayerDataWithCommonLogger {
+class RuntimeLayerData : public LayerData {
  private:
   struct QueryInfo {
     VkQueryPool timestamp_pool;
@@ -62,10 +62,9 @@ class RuntimeLayerData : public LayerDataWithCommonLogger {
 
  public:
   explicit RuntimeLayerData(char* log_filename)
-      : LayerDataWithCommonLogger(
-            log_filename,
-            "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
-            "Shader Invocations") {
+      : LayerData(log_filename,
+                  "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
+                  "Shader Invocations") {
     Event event("runtime_layer_init");
     LogEvent(&event);
   }
