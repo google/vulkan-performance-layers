@@ -40,9 +40,7 @@ check_layer_log() {
 
 export LD_LIBRARY_PATH="${INSTALL_DIR}":"${LD_LIBRARY_PATH-}"
 export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time
-# FIXME(https://github.com/googlestadia/performance-layers/issues/71): Fix
-#       hangs with the runtime layer and re-enable it.
-# export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime
+export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_frame_time
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_memory_usage
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_cache_sideload

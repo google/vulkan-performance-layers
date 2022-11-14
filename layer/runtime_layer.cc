@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -368,31 +369,33 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, CreateDevice,
     VkLayerDispatchTable dispatch_table{};
 
     // Get the next layer's instance of the device functions we will override.
-    SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
-    SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
-    SPL_DISPATCH_DEVICE_FUNC(DeviceWaitIdle);
-    SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
-    SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
-    SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
-    SPL_DISPATCH_DEVICE_FUNC(DestroyShaderModule);
     SPL_DISPATCH_DEVICE_FUNC(CmdBindPipeline);
     SPL_DISPATCH_DEVICE_FUNC(CmdDispatch);
     SPL_DISPATCH_DEVICE_FUNC(CmdDraw);
     SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndexed);
-    SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndirect);
     SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndexedIndirect);
+    SPL_DISPATCH_DEVICE_FUNC(CmdDrawIndirect);
+    SPL_DISPATCH_DEVICE_FUNC(CreateComputePipelines);
+    SPL_DISPATCH_DEVICE_FUNC(CreateGraphicsPipelines);
+    SPL_DISPATCH_DEVICE_FUNC(CreateShaderModule);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyDevice);
+    SPL_DISPATCH_DEVICE_FUNC(DestroyShaderModule);
+    SPL_DISPATCH_DEVICE_FUNC(DeviceWaitIdle);
+    SPL_DISPATCH_DEVICE_FUNC(FreeCommandBuffers);
+    SPL_DISPATCH_DEVICE_FUNC(GetDeviceProcAddr);
     SPL_DISPATCH_DEVICE_FUNC(QueueWaitIdle);
     // Get the next layer's instance of the device functions we will use. We do
     // not call these Vulkan functions directly to avoid re-entering the Vulkan
     // loader and confusing it.
-    SPL_DISPATCH_DEVICE_FUNC(CmdResetQueryPool);
-    SPL_DISPATCH_DEVICE_FUNC(CmdWriteTimestamp);
     SPL_DISPATCH_DEVICE_FUNC(CmdBeginQuery);
     SPL_DISPATCH_DEVICE_FUNC(CmdEndQuery);
     SPL_DISPATCH_DEVICE_FUNC(CmdPipelineBarrier);
+    SPL_DISPATCH_DEVICE_FUNC(CmdResetQueryPool);
+    SPL_DISPATCH_DEVICE_FUNC(CmdWriteTimestamp);
     SPL_DISPATCH_DEVICE_FUNC(CreateQueryPool);
     SPL_DISPATCH_DEVICE_FUNC(DestroyQueryPool);
     SPL_DISPATCH_DEVICE_FUNC(GetQueryPoolResults);
+
     return dispatch_table;
   };
 
@@ -423,6 +426,20 @@ SPL_RUNTIME_LAYER_FUNC(VkResult, EnumerateDeviceLayerProperties,
   return RuntimeLayer_EnumerateInstanceLayerProperties(property_count,
                                                        properties);
 }
+
+// Override for vkFreeCommandBuffer. Deletes the queries containing the freed
+// command buffers.
+SPL_RUNTIME_LAYER_FUNC(void, FreeCommandBuffers,
+                       (VkDevice device, VkCommandPool commandPool,
+                        uint32_t commandBufferCount,
+                        const VkCommandBuffer* pCommandBuffers)) {
+  performancelayers::RuntimeLayerData* layer_data = GetLayerData();
+  auto next_proc = layer_data->GetNextDeviceProcAddr(
+      device, &VkLayerDispatchTable::FreeCommandBuffers);
+  layer_data->RemoveQueries(pCommandBuffers, commandBufferCount);
+  next_proc(device, commandPool, commandBufferCount, pCommandBuffers);
+}
+
 }  // namespace
 
 // The *GetProcAddr functions are the entry points to the layers.
