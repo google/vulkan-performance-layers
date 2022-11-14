@@ -1,0 +1,4 @@
+; Checks the runtime log file pattern. Makes sure the header
+; and the data rows' format are as expected.
+; CHECK-LABEL: Pipeline,Run Time (ns),Fragment Shader Invocations,Compute Shader Invocations
+; CHECK-NEXT: "[{{0x[a-zA-Z0-9]+,0x[a-zA-Z0-9]+}}]",{{[0-9]+}},{{[0-9]+}},{{[0-9]+}}
