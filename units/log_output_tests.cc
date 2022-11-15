@@ -103,13 +103,13 @@ class StringOutput : public LogOutput {
   void LogLine(std::string_view line) override {
     assert(line.find('\n') == std::string_view::npos &&
            "Expected single line.");
-    out_.push_back(line);
+    out_.push_back(std::string(line));
   }
 
-  const std::vector<std::string_view> &GetLog() { return out_; }
+  const std::vector<std::string> &GetLog() { return out_; }
 
  private:
-  std::vector<std::string_view> out_;
+  std::vector<std::string> out_;
 };
 
 // Used by the tests prior to logging to make sure the underlying file is empty.
