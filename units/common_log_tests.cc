@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sstream>
+
 #include "common_logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "log_output.h"
+
+using ::testing::ElementsAre;
 
 namespace performancelayers {
 namespace {
 // This is a simple test and only calls the methods to make sure the
 // logger doesn't crash.
 TEST(CommonLogger, MethodCheck) {
-  CommonLogger logger(nullptr);
+  StringOutput out = {};
+  CommonLogger logger(&out);
   VectorInt64Attr hashes("hashes", {2, 3});
   CreateGraphicsPipelinesEvent pipeline_event(
       "create_graphics_pipeline", hashes, DurationClock::duration(4),
@@ -33,7 +39,12 @@ TEST(CommonLogger, MethodCheck) {
   // Checks double `EndLog` calls.
   logger.EndLog();
 
-  SUCCEED();
+  std::stringstream event_str;
+  int64_t timestamp_in_ns =
+      ToUnixNanos(pipeline_event.GetCreationTime().GetValue());
+  event_str << "create_graphics_pipeline,timestamp:" << timestamp_in_ns
+            << ",hashes:\"[0x2,0x3]\",duration:4";
+  EXPECT_THAT(out.GetLog(), ElementsAre(event_str.str()));
 }
 
 }  // namespace

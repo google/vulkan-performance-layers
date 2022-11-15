@@ -398,6 +398,7 @@ class LayerData {
   DurationClock::time_point last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
       DurationClock::time_point::min();
 
+  FileOutput common_output_;
   FileOutput private_output_;
 
   CSVLogger private_logger_;
