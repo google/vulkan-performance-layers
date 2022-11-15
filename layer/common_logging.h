@@ -21,6 +21,7 @@
 
 #include "event_logging.h"
 #include "layer_utils.h"
+#include "log_output.h"
 
 namespace performancelayers {
 // Converts `event` to a string with the common log format. The common log
@@ -33,30 +34,22 @@ std::string EventToCommonLogStr(Event &event);
 // stderr. The only valid methods after calling `EndLog()` is `EndLog()`.
 class CommonLogger : public EventLogger {
  public:
-  CommonLogger(const char *filename);
+  CommonLogger(LogOutput *out) : out_(out){};
 
   void AddEvent(Event *event) override {
     assert(out_);
     std::string event_str = EventToCommonLogStr(*event);
-    WriteLnAndFlush(out_, event_str);
+    out_->LogLine(event_str);
   }
 
   void StartLog() override {}
 
-  void EndLog() override {
-    if (out_ && out_ != stderr) {
-      fclose(out_);
-      out_ = nullptr;
-    }
-  }
+  void EndLog() override {}
 
-  void Flush() override {
-    assert(out_);
-    fflush(out_);
-  }
+  void Flush() override {}
 
  private:
-  FILE *out_ = nullptr;
+  LogOutput *out_ = nullptr;
 };
 
 }  // namespace performancelayers

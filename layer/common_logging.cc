@@ -66,19 +66,4 @@ std::string EventToCommonLogStr(Event &event) {
   return csv_str.str();
 }
 
-CommonLogger::CommonLogger(const char *filename) {
-  if (filename) {
-    // Since multiple layers open the same file and write to it at the same
-    // time, it's opened in the append mode.
-    out_ = fopen(filename, "a");
-    if (!out_) {
-      SPL_LOG(ERROR) << "Failed to open " << filename
-                     << ". Using stderr as the alternative output.";
-      out_ = stderr;
-    }
-  } else {
-    out_ = stderr;
-  }
-}
-
 }  // namespace performancelayers

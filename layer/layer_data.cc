@@ -69,10 +69,11 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 }  // namespace
 
 LayerData::LayerData(char* log_filename, const char* header)
-    : private_output_(log_filename),
+    : common_output_(getenv(kEventLogFileEnvVar)),
+      private_output_(log_filename),
       private_logger_(CSVLogger(header, &private_output_)),
       private_logger_filter_(FilterLogger(&private_logger_, LogLevel::kHigh)),
-      common_logger_(getenv(kEventLogFileEnvVar)),
+      common_logger_(&common_output_),
       broadcast_logger_({&private_logger_filter_, &common_logger_}) {
   broadcast_logger_.StartLog();
 }
