@@ -146,6 +146,7 @@ add_executable(layer_support_tests
     units/csv_log_tests.cc
     units/event_log_tests.cc
     units/input_buffer_tests.cc
+    units/log_output_tests.cc
     units/log_scanner_tests.cc
 )
 target_include_directories(layer_support_tests PRIVATE
