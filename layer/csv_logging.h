@@ -20,6 +20,7 @@
 
 #include "event_logging.h"
 #include "layer_utils.h"
+#include "log_output.h"
 
 namespace performancelayers {
 std::string ValueToCSVString(const std::string &value);
@@ -47,35 +48,28 @@ std::string EventToCSVString(Event &event);
 // The only valid methods after calling `EndLog()` is `EndLog()`.
 class CSVLogger : public EventLogger {
  public:
-  CSVLogger(const char *csv_header, const char *filename);
+  CSVLogger(const char *csv_header, LogOutput *out)
+      : header_(csv_header), out_(out) {}
 
   void AddEvent(Event *event) override {
     assert(out_);
     std::string event_str = EventToCSVString(*event);
-    WriteLnAndFlush(out_, event_str);
+    out_->LogLine(event_str);
   }
 
   // Writes the CSV header given in the constructor to the output.
   void StartLog() override {
     assert(out_);
-    WriteLnAndFlush(out_, header_);
+    out_->LogLine(header_);
   }
 
-  void EndLog() override {
-    if (out_ && out_ != stderr) {
-      fclose(out_);
-      out_ = nullptr;
-    }
-  }
+  void EndLog() override {}
 
-  void Flush() override {
-    assert(out_);
-    fflush(out_);
-  }
+  void Flush() override { out_->Flush(); }
 
  private:
-  FILE *out_ = nullptr;
   const char *header_ = nullptr;
+  LogOutput *out_ = nullptr;
 };
 
 }  // namespace performancelayers

@@ -33,6 +33,7 @@
 #include "event_logging.h"
 #include "farmhash.h"
 #include "layer_utils.h"
+#include "log_output.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_core.h"
@@ -146,12 +147,7 @@ class LayerData {
 
   LayerData(char* log_filename, const char* header);
 
-  virtual ~LayerData() {
-    if (event_log_ && event_log_ != stderr) {
-      fclose(event_log_);
-    }
-    broadcast_logger_.EndLog();
-  }
+  virtual ~LayerData() { broadcast_logger_.EndLog(); }
 
   // Records the dispatch table and instance key that is associated with
   // |instance|.
@@ -402,8 +398,8 @@ class LayerData {
   DurationClock::time_point last_log_time_ ABSL_GUARDED_BY(log_time_lock_) =
       DurationClock::time_point::min();
 
-  // Event log file appended to by multiple layers, or nullptr.
-  FILE* event_log_ = nullptr;
+  FileOutput private_output_;
+
   CSVLogger private_logger_;
   FilterLogger private_logger_filter_;
   CommonLogger common_logger_;

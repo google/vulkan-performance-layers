@@ -101,18 +101,4 @@ std::string EventToCSVString(Event &event) {
   return csv_str.str();
 }
 
-CSVLogger::CSVLogger(const char *csv_header, const char *filename)
-    : header_(csv_header) {
-  if (filename) {
-    out_ = fopen(filename, "w");
-    if (!out_) {
-      SPL_LOG(ERROR) << "Failed to open " << filename
-                     << ". Using stderr as the alternative output.";
-      out_ = stderr;
-    }
-  } else {
-    out_ = stderr;
-  }
-}
-
 }  // namespace performancelayers

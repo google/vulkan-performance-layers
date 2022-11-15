@@ -27,6 +27,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest-spi.h"
 #include "gtest/gtest.h"
+#include "log_output.h"
 
 using ::testing::ElementsAre;
 using ::testing::TempDir;
@@ -35,82 +36,6 @@ namespace performancelayers {
 namespace {
 constexpr unsigned kLogsPerThread = 1337;
 constexpr unsigned kThreadCount = 100;
-
-// An abstraction over the output. It writes the incoming string to the output.
-class LogOutput {
- public:
-  virtual ~LogOutput() = default;
-
-  virtual void Flush() = 0;
-
-  virtual void LogLine(std::string_view line) = 0;
-};
-
-// Implements LogOutput for a file. If the given filename is `nullptr`, it
-// writes to the standard output. After each write, the logs are persisted to
-// the file by calling `fflush`. Since only one line is written to the output by
-// each `LogLine()` call, it doens't need to aquire a mutex.
-class FileOutput : public LogOutput {
- public:
-  FileOutput(const char *filename) {
-    if (!filename) {
-      out_ = stderr;
-      return;
-    }
-
-    // Since multiple layers open the same file and write to it at the same
-    // time, it's opened in the append mode.
-    out_ = fopen(filename, "a");
-    if (!out_) {
-      SPL_LOG(ERROR) << "Failed to open " << filename
-                     << ". Using stderr as the alternative output.";
-      out_ = stderr;
-    }
-  }
-
-  ~FileOutput() {
-    if (out_ && out_ != stderr) {
-      fclose(out_);
-    }
-  }
-
-  void Flush() override {
-    assert(out_);
-    fflush(out_);
-  }
-
-  void LogLine(std::string_view line) override {
-    assert(out_);
-    assert(line.find('\n') == std::string_view::npos &&
-           "Expected single line.");
-    const int line_len = line.length();
-    fprintf(out_, "%.*s\n", line_len, line.data());
-    Flush();
-  }
-
- private:
-  FILE *out_ = nullptr;
-};
-
-// This class is used for testing. It writes the data to a string
-// instead of a file. The data can be read using the `GetLog()` method.
-class StringOutput : public LogOutput {
- public:
-  StringOutput(){};
-
-  void Flush() override {}
-
-  void LogLine(std::string_view line) override {
-    assert(line.find('\n') == std::string_view::npos &&
-           "Expected single line.");
-    out_.push_back(std::string(line));
-  }
-
-  const std::vector<std::string> &GetLog() { return out_; }
-
- private:
-  std::vector<std::string> out_;
-};
 
 // Used by the tests prior to logging to make sure the underlying file is empty.
 void CreateEmptyFile(const std::string &filename) {

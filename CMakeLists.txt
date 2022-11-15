@@ -78,6 +78,7 @@ target_sources(performance_layers_support_lib INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/input_buffer.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_data.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_utils.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_output.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_scanner.cc
 )
 target_include_directories(performance_layers_support_lib INTERFACE
