@@ -35,7 +35,7 @@ using ::testing::TempDir;
 namespace performancelayers {
 namespace {
 constexpr unsigned kLogsPerThread = 1337;
-constexpr unsigned kThreadCount = 100;
+constexpr unsigned kThreadCount = 8;
 
 // Used by the tests prior to logging to make sure the underlying file is empty.
 void CreateEmptyFile(const std::string &filename) {
