@@ -11,7 +11,8 @@ readonly SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" > /dev/null 
 readonly PROJECT_ROOT_DIR="${SCRIPT_DIR}/.."
 
 readonly INSTALL_DIR="$1"
-readonly LAYER_DIR="${INSTALL_DIR}/run/layer"
+readonly LAYER_DIR="${INSTALL_DIR}/layer"
+readonly MANIFEST_DIR="${INSTALL_DIR}/manifest"
 
 # Create a temp output directory for log files.
 readonly OUTPUT_DIR="$(mktemp -d)"
@@ -38,13 +39,13 @@ check_layer_log() {
   fi
 }
 
-export LD_LIBRARY_PATH="${INSTALL_DIR}":"${LD_LIBRARY_PATH-}"
+export LD_LIBRARY_PATH="${LAYER_DIR}":"${LD_LIBRARY_PATH-}"
 export VK_INSTANCE_LAYERS=VK_LAYER_STADIA_pipeline_compile_time
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_runtime
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_frame_time
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_memory_usage
 export VK_INSTANCE_LAYERS=$VK_INSTANCE_LAYERS:VK_LAYER_STADIA_pipeline_cache_sideload
-export VK_LAYER_PATH="${LAYER_DIR}"
+export VK_LAYER_PATH="${MANIFEST_DIR}"
 export VK_COMPILE_TIME_LOG="${OUTPUT_DIR}"/compile_time.csv
 export VK_RUNTIME_LOG="${OUTPUT_DIR}"/run_time.csv
 export VK_FRAME_TIME_LOG="${OUTPUT_DIR}"/frame_time.csv
