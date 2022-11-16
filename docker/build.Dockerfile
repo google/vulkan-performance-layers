@@ -84,4 +84,4 @@ RUN  CXX_COMPILER="g++" \
     && cmake --build . --target install
 
 # Enable and test the performance layers.
-RUN timeout 20s /performance-layers/docker/test_performance_layers.sh /build
+RUN timeout 20s /performance-layers/docker/test_performance_layers.sh /build/run

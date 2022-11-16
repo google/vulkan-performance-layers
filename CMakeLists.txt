@@ -1,4 +1,4 @@
-# Copyright 2020-2021 Google LLC
+# Copyright 2020-2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,8 +34,11 @@ set(FILESYSTEM_LIB_NAME stdc++fs)
 # Abseil requires PIC.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
+set(GVPL_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
 # Add external dependencies.
 add_subdirectory(third_party)
+set(GVPL_THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 
 if(DEFINED VULKAN_HEADERS_INSTALL_DIR)
   if(NOT IS_ABSOLUTE "${VULKAN_HEADERS_INSTALL_DIR}")
@@ -69,98 +72,10 @@ else()
 endif()
 message(STATUS "VulkanLoaderGenerated: ${VulkanLoaderGenerated_INCLUDE_DIR}")
 
-# The library with the common code shared by all layers.
-add_library(performance_layers_support_lib INTERFACE)
-target_sources(performance_layers_support_lib INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/common_logging.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/csv_logging.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/debug_logging.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/input_buffer.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_data.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/layer_utils.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_output.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer/log_scanner.cc
-)
-target_include_directories(performance_layers_support_lib INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/layer
-    ${VulkanHeaders_INCLUDE_DIR}
-    ${VulkanLoaderGenerated_INCLUDE_DIR}
-    third_party/farmhash/src
-)
-target_link_libraries(performance_layers_support_lib INTERFACE
-    absl::flat_hash_map
-    absl::flat_hash_set
-    absl::inlined_vector
-    absl::status
-    absl::statusor
-    absl::strings
-    absl::str_format
-    absl::synchronization
-    farmhash
-)
-
-# Layer targets.
-
-add_library(VkLayer_stadia_pipeline_compile_time SHARED
-    layer/compile_time_layer.cc
-)
-target_link_libraries(VkLayer_stadia_pipeline_compile_time PRIVATE performance_layers_support_lib)
-
-add_library(VkLayer_stadia_pipeline_runtime SHARED
-    layer/runtime_layer.cc
-    layer/runtime_layer_data.cc
-)
-target_link_libraries(VkLayer_stadia_pipeline_runtime PRIVATE performance_layers_support_lib)
-
-add_library(VkLayer_stadia_frame_time SHARED
-    layer/frame_time_layer.cc
-)
-target_link_libraries(VkLayer_stadia_frame_time PRIVATE performance_layers_support_lib)
-
-add_library(VkLayer_stadia_pipeline_cache_sideload SHARED
-    layer/cache_sideload_layer.cc
-)
-target_link_libraries(VkLayer_stadia_pipeline_cache_sideload PRIVATE performance_layers_support_lib)
-
-add_library(VkLayer_stadia_memory_usage SHARED
-    layer/memory_usage_layer.cc
-)
-target_link_libraries(VkLayer_stadia_memory_usage PRIVATE performance_layers_support_lib)
-
-install(TARGETS
-        VkLayer_stadia_pipeline_compile_time
-        VkLayer_stadia_pipeline_runtime
-        VkLayer_stadia_frame_time
-        VkLayer_stadia_pipeline_cache_sideload
-        VkLayer_stadia_memory_usage
-        DESTINATION lib)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/layer
-        DESTINATION ${CMAKE_INSTALL_PREFIX}
-        FILES_MATCHING PATTERN "*.json")
-
-# Test targets.
-
+# Support testing with `ctest`. In this project, all unit tests can also be
+# executed with `cmake --build . --target check`, or `ninja check` if you
+# use `ninja`.
 enable_testing()
-add_executable(layer_support_tests
-    units/common_log_tests.cc
-    units/csv_log_tests.cc
-    units/event_log_tests.cc
-    units/input_buffer_tests.cc
-    units/log_output_tests.cc
-    units/log_scanner_tests.cc
-)
-target_include_directories(layer_support_tests PRIVATE
-    third_party/googletest/googletest/include
-)
-target_link_libraries(layer_support_tests PRIVATE
-    performance_layers_support_lib
-    gtest
-    gtest_main
-    gmock
-    ${FILESYSTEM_LIB_NAME}
-)
 
-add_test(layer_support_tests layer_support_tests)
-add_custom_target(check COMMAND layer_support_tests)
-add_dependencies(check layer_support_tests)
+# Add layers.
+add_subdirectory(layer)
