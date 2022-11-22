@@ -61,6 +61,8 @@ std::string EventToCommonLogStr(Event &event) {
             attribute->cast<VectorInt64Attr>()->GetValue());
         break;
       }
+      case ValueType::kTraceEvent:
+        break;
     }
   }
   return csv_str.str();

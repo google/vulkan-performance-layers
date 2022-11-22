@@ -29,12 +29,6 @@ int64_t ToUnixNanos(TimestampClock::time_point time) {
   return std::chrono::nanoseconds(time.time_since_epoch()).count();
 }
 
-void WriteLnAndFlush(FILE* file, std::string_view content) {
-  assert(file);
-  fprintf(file, "%.*s\n", static_cast<int>(content.size()), content.data());
-  fflush(file);
-}
-
 FunctionInterceptor::FunctionInterceptor(
     InterceptedVulkanFunc intercepted_function) {
   FunctionNameToPtr& registered_functions = GetInterceptedFunctions();
