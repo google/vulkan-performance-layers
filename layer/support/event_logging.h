@@ -15,8 +15,10 @@
 #ifndef STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_EVENT_LOGGING_H_
 #define STADIA_OPEN_SOURCE_PERFORMANCE_LAYERS_EVENT_LOGGING_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "layer/support/layer_utils.h"
@@ -133,9 +135,21 @@ class TimestampAttr : public Attribute {
 using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
 using HashAttr = AttributeImpl<int64_t, ValueType::kHashAttribute>;
 using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
-using StringAttr = AttributeImpl<std::string, ValueType::kString>;
 using VectorInt64Attr =
     AttributeImpl<std::vector<int64_t>, ValueType::kVectorInt64>;
+
+class StringAttr : public Attribute {
+ public:
+  static constexpr ValueType id_ = ValueType::kString;
+
+  StringAttr(const char *name, const std::string &value)
+      : Attribute{name, ValueType::kString}, value_(value) {}
+
+  std::string_view GetValue() const { return value_; }
+
+ private:
+  std::string value_;
+};
 
 // A compound event used by all Trace Event types. Each event type must add
 // its required attribute(s) to args. Since the events don't own many args,
@@ -169,6 +183,23 @@ class TraceEventAttr : public Attribute {
 
   const std::vector<Attribute *> &GetArgs() const { return args_; }
 
+  template <typename AttrType>
+  const AttrType *GetArg() const {
+    for (Attribute *arg : args_) {
+      if (auto *attr = arg->cast<AttrType>()) return attr;
+    }
+    return nullptr;
+  }
+
+  template <typename AttrType>
+  const AttrType *GetArg(std::string_view name) const {
+    for (Attribute *arg : args_) {
+      if (auto *attr = arg->cast<AttrType>())
+        if (attr->GetName() == name) return attr;
+    }
+    return nullptr;
+  }
+
  private:
   StringAttr category_;
   StringAttr phase_;
@@ -199,6 +230,14 @@ class Event {
   LogLevel GetLogLevel() const { return log_level_; }
 
   const TimestampAttr &GetCreationTime() { return creation_time_; }
+
+  template <typename AttrType>
+  const AttrType *GetAttribute() const {
+    for (Attribute *attribute : attributes_) {
+      if (auto *attr = attribute->cast<AttrType>()) return attr;
+    }
+    return nullptr;
+  }
 
  protected:
   void InitAttributes(std::initializer_list<Attribute *> attrs) {

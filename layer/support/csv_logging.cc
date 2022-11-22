@@ -86,8 +86,7 @@ std::string EventToCSVString(Event &event) {
         break;
       }
       case ValueType::kString: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<StringAttr>()->GetValue());
+        csv_str << attributes[i]->cast<StringAttr>()->GetValue();
         break;
       }
       case ValueType::kVectorInt64: {

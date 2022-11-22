@@ -53,7 +53,7 @@ std::string EventToCommonLogStr(Event &event) {
         break;
       }
       case ValueType::kString: {
-        csv_str << ValueToCSVString(attribute->cast<StringAttr>()->GetValue());
+        csv_str << attribute->cast<StringAttr>()->GetValue();
         break;
       }
       case ValueType::kVectorInt64: {
