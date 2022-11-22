@@ -30,6 +30,7 @@ enum ValueType {
   kInt64,
   kString,
   kTimestamp,
+  kTraceEvent,
   kVectorInt64
 };
 
@@ -135,6 +136,46 @@ using Int64Attr = AttributeImpl<int64_t, ValueType::kInt64>;
 using StringAttr = AttributeImpl<std::string, ValueType::kString>;
 using VectorInt64Attr =
     AttributeImpl<std::vector<int64_t>, ValueType::kVectorInt64>;
+
+// A compound event used by all Trace Event types. Each event type must add
+// its required attribute(s) to args. Since the events don't own many args,
+// scanning the args should not have much performance overhead. Example:
+//```c++
+// StringAttr scope_attr("scope", "g");
+// TraceEventAttr attr("attr_name", "category", "i", 123, 321, {&scope_attr});
+//```
+class TraceEventAttr : public Attribute {
+ public:
+  static constexpr ValueType id_ = ValueType::kTraceEvent;
+
+  TraceEventAttr(const char *name, const char *cat, const char *phase,
+                 int64_t pid, int64_t tid,
+                 std::initializer_list<Attribute *> args)
+      : Attribute(name, ValueType::kTraceEvent),
+        category_("cat", cat),
+        phase_("ph", phase),
+        pid_("pid", pid),
+        tid_("tid", tid) {
+    args_ = {args.begin(), args.end()};
+  }
+
+  const StringAttr &GetCategory() const { return category_; }
+
+  const StringAttr &GetPhase() const { return phase_; }
+
+  const Int64Attr &GetPid() const { return pid_; }
+
+  const Int64Attr &GetTid() const { return tid_; }
+
+  const std::vector<Attribute *> &GetArgs() const { return args_; }
+
+ private:
+  StringAttr category_;
+  StringAttr phase_;
+  Int64Attr pid_;
+  Int64Attr tid_;
+  std::vector<Attribute *> args_;
+};
 
 // Event represents the base class for a loggable event. It contains the
 // event's name, creation time, and the level of importance. The creation time

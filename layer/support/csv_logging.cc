@@ -60,7 +60,7 @@ std::string EventToCSVString(Event &event) {
   std::ostringstream csv_str;
   for (size_t i = 0, e = attributes.size(); i != e; ++i) {
     switch (attributes[i]->GetValueType()) {
-      case kHashAttribute: {
+      case ValueType::kHashAttribute: {
         csv_str << "0x" << std::hex
                 << attributes[i]->cast<HashAttr>()->GetValue();
         break;
@@ -95,6 +95,8 @@ std::string EventToCSVString(Event &event) {
             attributes[i]->cast<VectorInt64Attr>()->GetValue());
         break;
       }
+      case ValueType::kTraceEvent:
+        break;
     }
     if (i + 1 != e) csv_str << ",";
   }

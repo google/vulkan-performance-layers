@@ -19,6 +19,7 @@ add_executable(layer_support_tests
     input_buffer_tests.cc
     log_output_tests.cc
     log_scanner_tests.cc
+    trace_event_log_tests.cc
 )
 
 target_include_directories(layer_support_tests PRIVATE

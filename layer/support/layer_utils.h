@@ -98,9 +98,6 @@ class Duration {
   DurationClock::duration duration_;
 };
 
-// Writes |content| to |file| and flushes it.
-void WriteLnAndFlush(FILE* file, std::string_view content);
-
 // Represents a type-erased layer function pointer intercepting a known
 // Vulkan function. Should be constructed with the type safe |Create|
 // function.
