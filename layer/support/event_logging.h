@@ -219,6 +219,15 @@ class Event {
         log_level_(log_level),
         creation_time_({"timestamp", GetTimestamp()}) {}
 
+  Event(const char *name, int64_t timestamp,
+        LogLevel log_level = LogLevel::kLow)
+      : name_(name),
+        log_level_(log_level),
+        creation_time_(
+            {"timestamp",
+             TimestampClock::time_point(TimestampClock::duration(timestamp))}) {
+  }
+
   virtual ~Event() = default;
 
   const std::vector<Attribute *> &GetAttributes() { return attributes_; };

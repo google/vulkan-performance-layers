@@ -24,12 +24,14 @@
 #include "gtest/gtest.h"
 #include "layer/support/event_logging.h"
 #include "layer/support/layer_utils.h"
+#include "layer/support/log_output.h"
 
 using ::testing::ElementsAre;
-using ::testing::IsEmpty;
 
 namespace performancelayers {
 namespace {
+constexpr int64_t kTestEventTimestamp = 1401;
+
 std::string ValueToJsonString(bool value) { return value ? "true" : "false"; }
 
 std::string ValueToJsonString(int64_t value) { return std::to_string(value); }
@@ -175,9 +177,9 @@ std::string EventToTraceEventString(Event &event) {
 // indicating event's visibility in the trace viewer.
 class InstantEvent : public Event {
  public:
-  InstantEvent(const char *name, const char *category, int64_t pid, int64_t tid,
-               const char *scope = "g")
-      : Event(name),
+  InstantEvent(const char *name, int64_t timestamp, const char *category,
+               int64_t pid, int64_t tid, const char *scope = "g")
+      : Event(name, timestamp),
         scope_("scope", scope),
         trace_event_("trace_event", category, "i", pid, tid, {&scope_}) {
     InitAttributes({&trace_event_});
@@ -192,10 +194,10 @@ class InstantEvent : public Event {
 // in the trace viewer.
 class CreateShaderCompleteEvent : public Event {
  public:
-  CreateShaderCompleteEvent(const char *name,
+  CreateShaderCompleteEvent(const char *name, int64_t timestamp,
                             const std::vector<int64_t> &hash_values,
                             Duration duration, int64_t pid, int64_t tid)
-      : Event(name),
+      : Event(name, timestamp),
         hash_values_("hashes", hash_values),
         duration_("duration", duration),
         trace_event_("trace_event", "pipeline", "X", pid, tid, {&duration_}) {
@@ -294,8 +296,35 @@ class InvalidCompleteEvent : public Event {
   TraceEventAttr trace_event_;
 };
 
+// TraceEventLogger logs the events in the Trace Event format to the output
+// given in its constructor. There is no need to add '\n' at the end of the
+// input of the `AddEvent()` method. This is handled by the implementation. The
+// only valid methods after calling `EndLog()` is `EndLog()`.
+class TraceEventLogger : public EventLogger {
+ public:
+  TraceEventLogger(LogOutput *out) : out_(out) { assert(out); }
+
+  void AddEvent(Event *event) override {
+    std::string event_str = EventToTraceEventString(*event);
+    out_->LogLine(event_str);
+  }
+
+  // Writes '[', indicating the start point of the JSON array.
+  void StartLog() override { out_->LogLine("["); }
+
+  // The ']' at the end of the JSON array is optional in the Trace Event format.
+  // We exploit this to allow multiple layers write into the same file.
+  void EndLog() override {}
+
+  void Flush() override { out_->Flush(); }
+
+ private:
+  LogOutput *out_ = nullptr;
+};
+
 TEST(TraceEvent, InstantEventCreation) {
-  InstantEvent instant_event("compile_time_init", "compile_time", 123, 321);
+  InstantEvent instant_event("compile_time_init", kTestEventTimestamp,
+                             "compile_time", 123, 321);
   std::vector<Attribute *> attrs = instant_event.GetAttributes();
   const TraceEventAttr *trace_attr =
       instant_event.GetAttribute<TraceEventAttr>();
@@ -316,8 +345,9 @@ TEST(TraceEvent, CompleteEventCreation) {
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
   Duration duration = Duration::FromNanoseconds(100000);
-  CreateShaderCompleteEvent complete_event(
-      "compile_time", {hash_val1, hash_val2}, duration, 321, 123);
+  CreateShaderCompleteEvent complete_event("compile_time", kTestEventTimestamp,
+                                           {hash_val1, hash_val2}, duration,
+                                           321, 123);
   std::vector<Attribute *> attrs = complete_event.GetAttributes();
   const TraceEventAttr *trace_attr =
       complete_event.GetAttribute<TraceEventAttr>();
@@ -332,32 +362,24 @@ TEST(TraceEvent, CompleteEventCreation) {
 }
 
 TEST(TraceEvent, InstantEventToString) {
-  InstantEvent instant_event("compile_time_init", "compile_time", 123, 321);
-  std::ostringstream expected_str;
-  expected_str
-      << R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : )"
-      << std::fixed << ToUnixMillis(instant_event.GetCreationTime().GetValue())
-      << R"(, "s" : "g", "args" : { "scope" : "g" } },)";
-  EXPECT_EQ(EventToTraceEventString(instant_event), expected_str.str());
+  InstantEvent instant_event("compile_time_init", kTestEventTimestamp,
+                             "compile_time", 123, 321);
+  std::string_view expected_str =
+      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
+  EXPECT_EQ(EventToTraceEventString(instant_event), expected_str);
 }
 
 TEST(TraceEvent, CompleteEventToString) {
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   const int64_t hash_val2 = 0x67d390249c2f20ce;
-  Duration duration = Duration::FromNanoseconds(100000);
-  CreateShaderCompleteEvent complete_event(
-      "compile_time", {hash_val1, hash_val2}, duration, 123, 321);
+  Duration duration = Duration::FromNanoseconds(1000);
+  CreateShaderCompleteEvent complete_event("compile_time", kTestEventTimestamp,
+                                           {hash_val1, hash_val2}, duration,
+                                           123, 321);
 
-  std::ostringstream expected_str;
-  double start_timestamp =
-      ToUnixMillis(complete_event.GetCreationTime().GetValue()) -
-      duration.ToMilliseconds();
-  expected_str
-      << R"({ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : )"
-      << std::fixed << start_timestamp << R"(, "dur" : )"
-      << duration.ToMilliseconds() << R"(, "args" : { "duration" : )"
-      << duration.ToMilliseconds() << " } },";
-  EXPECT_EQ(EventToTraceEventString(complete_event), expected_str.str());
+  std::string_view expected_str =
+      R"({ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : 0.000401, "dur" : 0.001000, "args" : { "duration" : 0.001000 } },)";
+  EXPECT_EQ(EventToTraceEventString(complete_event), expected_str);
 }
 
 #ifndef NDEBUG
@@ -392,6 +414,52 @@ TEST(TraceEventDeathTest, InvalidCompleteEvent) {
   ASSERT_DEATH(EventToTraceEventString(no_scope_event), "Duration not found.");
 }
 #endif
+
+TEST(TraceEventLogger, MethodCheck) {
+  StringOutput out = {};
+  TraceEventLogger logger(&out);
+
+  InstantEvent instant_event("compile_time_init", kTestEventTimestamp,
+                             "compile_time", 123, 321);
+
+  logger.StartLog();
+  logger.AddEvent(&instant_event);
+  logger.Flush();
+  logger.EndLog();
+  // Checks double `EndLog` calls.
+  logger.EndLog();
+  std::string_view expected_str =
+      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
+  EXPECT_THAT(out.GetLog(), ElementsAre("[", expected_str));
+}
+
+TEST(TraceEventLogger, LogDifferentTypes) {
+  const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
+  const int64_t hash_val2 = 0x67d390249c2f20ce;
+  Duration duration = Duration::FromNanoseconds(1000);
+  CreateShaderCompleteEvent complete_event("compile_time", kTestEventTimestamp,
+                                           {hash_val1, hash_val2}, duration,
+                                           321, 123);
+  InstantEvent instant_event("compile_time_init", kTestEventTimestamp,
+                             "compile_time", 123, 321);
+
+  StringOutput out = {};
+  TraceEventLogger logger(&out);
+
+  logger.StartLog();
+  logger.AddEvent(&instant_event);
+  logger.Flush();
+  logger.AddEvent(&complete_event);
+  logger.EndLog();
+
+  std::string_view instant_expected_str =
+      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
+
+  std::string_view complete_expected_str =
+      R"({ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 321, "tid" : 123, "ts" : 0.000401, "dur" : 0.001000, "args" : { "duration" : 0.001000 } },)";
+  EXPECT_THAT(out.GetLog(),
+              ElementsAre("[", instant_expected_str, complete_expected_str));
+}
 
 }  // namespace
 }  // namespace performancelayers
