@@ -74,11 +74,11 @@ TimestampClock::time_point GetTimestamp();
 // Returns a monotonic time_point to be used for measuring duration.
 DurationClock::time_point Now();
 
-// Converts a chrono duration to int64 nanoseconds.
-int64_t ToInt64Nanoseconds(DurationClock::duration duration);
-
 // Converts a chrono time_point to a Unix int64 nanoseconds representation.
 int64_t ToUnixNanos(TimestampClock::time_point time);
+
+// Converts a chrono time_point to a Unix int64 milliseconds representation.
+double ToUnixMillis(TimestampClock::time_point time);
 
 // A wrapper around `DurationClock::duration` to keep track of the time unit.
 // When the `Duration` is used, we know it's either created from a
@@ -92,7 +92,13 @@ class Duration {
 
   Duration(DurationClock::duration duration) : duration_{duration} {}
 
-  int64_t ToNanoseconds() const { return ToInt64Nanoseconds(duration_); }
+  int64_t ToNanoseconds() const {
+    return std::chrono::nanoseconds(duration_).count();
+  }
+
+  double ToMilliseconds() const {
+    return std::chrono::duration<double, std::milli>(duration_).count();
+  }
 
  private:
   DurationClock::duration duration_;

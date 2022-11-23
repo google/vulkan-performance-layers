@@ -21,12 +21,13 @@ TimestampClock::time_point GetTimestamp() { return TimestampClock::now(); }
 
 DurationClock::time_point Now() { return DurationClock::now(); }
 
-int64_t ToInt64Nanoseconds(DurationClock::duration duration) {
-  return std::chrono::nanoseconds(duration).count();
-}
-
 int64_t ToUnixNanos(TimestampClock::time_point time) {
   return std::chrono::nanoseconds(time.time_since_epoch()).count();
+}
+
+double ToUnixMillis(TimestampClock::time_point time) {
+  return std::chrono::duration<double, std::milli>(time.time_since_epoch())
+      .count();
 }
 
 FunctionInterceptor::FunctionInterceptor(
