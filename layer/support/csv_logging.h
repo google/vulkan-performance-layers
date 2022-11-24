@@ -29,11 +29,11 @@ std::string ValueToCSVString(const int64_t value);
 
 std::string ValueToCSVString(const std::vector<int64_t> &values);
 
-// Converts a `DurationClock::duration` to its nanoseconds representation.
+// Converts a `Duration` to its nanoseconds representation.
 std::string ValueToCSVString(Duration value);
 
-// Converts a `TimestampClock::time_point` to its nanoseconds representation.
-std::string ValueToCSVString(TimestampClock::time_point value);
+// Converts a `Timestamp` to its nanoseconds representation.
+std::string ValueToCSVString(Timestamp value);
 
 // Takes an `Event` instance as an input and generates a csv string containing
 // `event`'s name and attribute values. The duration values will be logged in

@@ -123,13 +123,13 @@ class TimestampAttr : public Attribute {
  public:
   static constexpr ValueType id_ = ValueType::kTimestamp;
 
-  TimestampAttr(const char *name, const TimestampClock::time_point &value)
+  TimestampAttr(const char *name, const Timestamp &value)
       : Attribute(name, ValueType::kTimestamp), value_(value) {}
 
-  TimestampClock::time_point GetValue() const { return value_; };
+  Timestamp GetValue() const { return value_; };
 
  private:
-  TimestampClock::time_point value_;
+  Timestamp value_;
 };
 
 using BoolAttr = AttributeImpl<bool, ValueType::kBool>;
@@ -219,14 +219,12 @@ class Event {
         log_level_(log_level),
         creation_time_({"timestamp", GetTimestamp()}) {}
 
-  Event(const char *name, int64_t timestamp,
+  Event(const char *name, int64_t timestamp_ns,
         LogLevel log_level = LogLevel::kLow)
       : name_(name),
         log_level_(log_level),
         creation_time_(
-            {"timestamp",
-             TimestampClock::time_point(TimestampClock::duration(timestamp))}) {
-  }
+            {"timestamp", Timestamp::FromNanoseconds(timestamp_ns)}) {}
 
   virtual ~Event() = default;
 
