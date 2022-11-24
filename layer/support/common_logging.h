@@ -29,9 +29,10 @@ namespace performancelayers {
 // `event_name,attribute1_name:attribute1_value,attribute2_name:attribute2_value,...`
 std::string EventToCommonLogStr(Event &event);
 
-// CommonLogger logs the events in the common log.
-// `filename` can be nullptr. In this case, the output will be written to
-// stderr. The only valid methods after calling `EndLog()` is `EndLog()`.
+// CommonLogger logs the events in the common log. There is no need to add '\n'
+// at the end of the input of the `AddEvent()` method. This is handled by the
+// implementation. The only valid methods after calling `EndLog()` is
+// `EndLog()`.
 class CommonLogger : public EventLogger {
  public:
   CommonLogger(LogOutput *out) : out_(out){};

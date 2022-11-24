@@ -41,11 +41,10 @@ std::string ValueToCSVString(TimestampClock::time_point value);
 std::string EventToCSVString(Event &event);
 
 // CSVLogger logs the events in the CSV format to the output given in its
-// constructor.
-// There is no need to add '\n' at the end of the csv_header in the constructor.
-// This is handled by the implementation. `filename` can be nullptr. In this
-// case, the output will be written to stderr.
-// The only valid methods after calling `EndLog()` is `EndLog()`.
+// constructor. There is no need to add '\n' at the end of the csv_header in the
+// constructor, or the input of the `AddEvent()` method. This is handled by the
+// implementation. The only valid methods after calling `EndLog()` is
+// `EndLog()`.
 class CSVLogger : public EventLogger {
  public:
   CSVLogger(const char *csv_header, LogOutput *out)
