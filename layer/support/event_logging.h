@@ -173,6 +173,10 @@ class TraceEventAttr : public Attribute {
     args_ = {args.begin(), args.end()};
   }
 
+  TraceEventAttr(const char *name, const char *cat, const char *phase,
+                 std::initializer_list<Attribute *> args)
+      : TraceEventAttr(name, cat, phase, GetProcessId(), GetThreadId(), args) {}
+
   const StringAttr &GetCategory() const { return category_; }
 
   const StringAttr &GetPhase() const { return phase_; }

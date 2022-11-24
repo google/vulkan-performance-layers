@@ -51,6 +51,7 @@ export VK_RUNTIME_LOG="${OUTPUT_DIR}"/run_time.csv
 export VK_FRAME_TIME_LOG="${OUTPUT_DIR}"/frame_time.csv
 export VK_MEMORY_USAGE_LOG="${OUTPUT_DIR}"/memory_usage.csv
 export VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE="${OUTPUT_DIR}"/events.log
+export VK_PERFORMANCE_LAYERS_TRACE_EVENT_LOG_FILE="${OUTPUT_DIR}"/trace_events.log
 
 # Test if an application can run with performance layers enabled.
 xvfb-run vkcube --c 100

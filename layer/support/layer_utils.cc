@@ -15,8 +15,33 @@
 #include "layer/support/layer_utils.h"
 
 #include <cassert>
+#include <cstdint>
+
+#ifdef __linux__
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 namespace performancelayers {
+
+int64_t GetThreadId() {
+#ifdef __linux__
+  static thread_local int64_t tid = gettid();
+  return tid;
+#else
+  return 0;
+#endif
+}
+
+int64_t GetProcessId() {
+#ifdef __linux__
+  static int64_t pid = getpid();
+  return pid;
+#else
+  return 0;
+#endif
+}
+
 TimestampClock::time_point GetTimestamp() { return TimestampClock::now(); }
 
 DurationClock::time_point Now() { return DurationClock::now(); }

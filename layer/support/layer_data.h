@@ -33,6 +33,7 @@
 #include "layer/support/csv_logging.h"
 #include "layer/support/event_logging.h"
 #include "layer/support/layer_utils.h"
+#include "layer/support/trace_event_logging.h"
 #include "log_output.h"
 #include "vulkan/vk_layer.h"
 #include "vulkan/vulkan.h"
@@ -42,6 +43,9 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
+constexpr char kTraceEventLogFileEnvVar[] =
+    "VK_PERFORMANCE_LAYERS_TRACE_EVENT_LOG_FILE";
+
 // Base class for Vulkan dispatchable handle wrappers. Exposes the underlying
 // key to derived classes and implements basic operations like key comparisons
 // and hash.
@@ -405,6 +409,29 @@ class LayerData {
   FilterLogger private_logger_filter_;
   CommonLogger common_logger_;
   BroadcastLogger broadcast_logger_;
+};
+
+// A wrapper around `LayerData` adding a `TraceEventLogger` to it. The logger
+// writes the logs to the file specified by `kTraceEventLogFileEnvVar`.
+class LayerDataWithTraceEventLogger : public LayerData {
+ public:
+  LayerDataWithTraceEventLogger(char* log_filename, const char* header)
+      : LayerData(log_filename, header),
+        trace_output(getenv(kTraceEventLogFileEnvVar)),
+        trace_logger(&trace_output) {
+    trace_logger.StartLog();
+  }
+
+  ~LayerDataWithTraceEventLogger() { trace_logger.EndLog(); }
+
+  void LogEvent(Event* event) {
+    LayerData::LogEvent(event);
+    trace_logger.AddEvent(event);
+  }
+
+ private:
+  FileOutput trace_output;
+  TraceEventLogger trace_logger;
 };
 
 }  // namespace performancelayers

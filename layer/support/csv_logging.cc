@@ -32,11 +32,11 @@ std::string ValueToCSVString(const int64_t value) {
 
 std::string ValueToCSVString(const std::vector<int64_t> &values) {
   std::ostringstream csv_string;
-  csv_string << "\"[";
+  csv_string << "\"[" << std::hex;
   size_t e = values.size();
   for (size_t i = 0; i != e; ++i) {
     const char *delimiter = i < e - 1 ? "," : "";
-    csv_string << "0x" << std::hex << values[i] << delimiter;
+    csv_string << "0x" << values[i] << delimiter;
   }
   csv_string << "]\"";
   return csv_string.str();
