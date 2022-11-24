@@ -308,18 +308,18 @@ class LayerData {
 
   // Returns the time difference between the last time this method was called
   // and now. The first call is used for initialization and does not calculate
-  // the time delta. It returns DurationClock::duration::min() indicating an
+  // the time delta. It returns Duration::Min() indicating an
   // invalid time delta. Use case example:
   // ```c++
-  // DurationClock::duration time_delta = GetTimeDelta();
-  // if (time_delta != DurationClock::duration::min()) {
+  // Duration time_delta = GetTimeDelta();
+  // if (time_delta != Duration::Min()) {
   //    std::cout << "Success: time_delta is " << ToInt64Nanoseconds(time_delta)
   //    << std::endl;
   // } else {
   //    std::cerr << "Error: time_delta is invalid." << std::endl;
   // }
   // ```
-  DurationClock::duration GetTimeDelta();
+  Duration GetTimeDelta();
 
   // Returns a string representation of |hash|.
   static std::string ShaderHashToString(uint64_t hash);

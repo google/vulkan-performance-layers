@@ -85,10 +85,10 @@ void LayerData::RemoveInstance(VkInstance instance) {
   instance_keys_map_.erase(key);
 }
 
-DurationClock::duration LayerData::GetTimeDelta() {
+Duration LayerData::GetTimeDelta() {
   absl::MutexLock lock(&log_time_lock_);
   DurationClock::time_point now = Now();
-  DurationClock::duration logged_delta = DurationClock::duration::min();
+  Duration logged_delta = Duration::Min();
 
   if (last_log_time_ != DurationClock::time_point::min()) {
     // Using initialized logged_delta
