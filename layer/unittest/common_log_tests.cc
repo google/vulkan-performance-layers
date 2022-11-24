@@ -30,7 +30,7 @@ TEST(CommonLogger, MethodCheck) {
   CommonLogger logger(&out);
   VectorInt64Attr hashes("hashes", {2, 3});
   CreateGraphicsPipelinesEvent pipeline_event(
-      "create_graphics_pipeline", hashes, DurationClock::duration(4),
+      "create_graphics_pipeline", hashes, Duration::FromNanoseconds(4),
       LogLevel::kHigh);
   logger.StartLog();
   logger.AddEvent(&pipeline_event);
@@ -41,7 +41,7 @@ TEST(CommonLogger, MethodCheck) {
 
   std::stringstream event_str;
   int64_t timestamp_in_ns =
-      ToUnixNanos(pipeline_event.GetCreationTime().GetValue());
+      pipeline_event.GetCreationTime().GetValue().ToNanoseconds();
   event_str << "create_graphics_pipeline,timestamp:" << timestamp_in_ns
             << ",hashes:\"[0x2,0x3]\",duration:4";
   EXPECT_THAT(out.GetLog(), ElementsAre(event_str.str()));

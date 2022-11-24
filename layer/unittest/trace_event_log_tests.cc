@@ -56,8 +56,8 @@ std::string ValueToJsonString(Duration value) {
 
 // Converts the timestamp to milliseconds, the defualt time unit in the `Trace
 // Event` format.
-std::string ValueToJsonString(TimestampClock::time_point value) {
-  return std::to_string(ToUnixMillis(value));
+std::string ValueToJsonString(Timestamp value) {
+  return std::to_string(value.ToMilliseconds());
 }
 
 // Appends all given attributes, including the type-specific attribute, to the
@@ -117,7 +117,7 @@ void AppendCompleteEvent(TimestampAttr timestamp,
   assert(duration_attr && "Duration not found.");
 
   double duration_ms = duration_attr->GetValue().ToMilliseconds();
-  double end_timestamp_ms = ToUnixMillis(timestamp.GetValue());
+  double end_timestamp_ms = timestamp.GetValue().ToMilliseconds();
   double start_timestamp_ms = end_timestamp_ms - duration_ms;
   json_stream << ", " << std::quoted("ts") << " : " << std::fixed
               << start_timestamp_ms << ", " << std::quoted("dur") << " : "

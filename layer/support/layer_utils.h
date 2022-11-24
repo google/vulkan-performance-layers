@@ -74,12 +74,6 @@ TimestampClock::time_point GetTimestamp();
 // Returns a monotonic time_point to be used for measuring duration.
 DurationClock::time_point Now();
 
-// Converts a chrono time_point to a Unix int64 nanoseconds representation.
-int64_t ToUnixNanos(TimestampClock::time_point time);
-
-// Converts a chrono time_point to a Unix int64 milliseconds representation.
-double ToUnixMillis(TimestampClock::time_point time);
-
 // A wrapper around `DurationClock::duration` to keep track of the time unit.
 // When the `Duration` is used, we know it's either created from a
 // `DurationClock::duration` that has nanosecond-level precision or an int that
@@ -102,6 +96,36 @@ class Duration {
 
  private:
   DurationClock::duration duration_;
+};
+
+// A wrapper around `TimestampClock::time_point` to keep track of the time unit.
+// When the `Timestamp` is used, we know it's either created from a
+// `GetTimestamp()` that has nanosecond-level precision or an int that
+// represents duration in nanoseconds.
+class Timestamp {
+ public:
+  // A `time_point` is a point in time offset to a "zero" epoch. The given input
+  // has no epoch information. To create a time_point from it, it should be
+  // converted into a duration representing the offset from the zero epoch.
+  static Timestamp FromNanoseconds(int64_t nanos) {
+    return Timestamp(
+        TimestampClock::time_point(TimestampClock::duration(nanos)));
+  }
+
+  Timestamp(TimestampClock::time_point timestamp) : timestamp_{timestamp} {}
+
+  int64_t ToNanoseconds() const {
+    return std::chrono::nanoseconds(timestamp_.time_since_epoch()).count();
+  }
+
+  double ToMilliseconds() const {
+    return std::chrono::duration<double, std::milli>(
+               timestamp_.time_since_epoch())
+        .count();
+  }
+
+ private:
+  TimestampClock::time_point timestamp_;
 };
 
 // Represents a type-erased layer function pointer intercepting a known

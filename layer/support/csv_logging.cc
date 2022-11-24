@@ -46,8 +46,8 @@ std::string ValueToCSVString(Duration value) {
   return std::to_string(value.ToNanoseconds());
 }
 
-std::string ValueToCSVString(TimestampClock::time_point value) {
-  return std::to_string(ToUnixNanos(value));
+std::string ValueToCSVString(Timestamp value) {
+  return std::to_string(value.ToNanoseconds());
 }
 
 // Takes an `Event` instance as an input and generates a csv string containing
