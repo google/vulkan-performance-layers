@@ -31,12 +31,17 @@ namespace {
 class MergeCacheResultEvent : public Event {
  public:
   MergeCacheResultEvent(const char* name, const std::string& result)
-      : Event(name), result_("result", result) {
-    InitAttributes({&result_});
+      : Event(name),
+        result_("result", result),
+        trace_attr_("trace_attr", "cache_sideload_layer", "i",
+                    {&scope_, &result_}) {
+    InitAttributes({&result_, &trace_attr_});
   }
 
  private:
   StringAttr result_;
+  StringAttr scope_{"scope", "t"};
+  TraceEventAttr trace_attr_;
 };
 
 class CreateCacheEvent : public Event {
@@ -46,22 +51,26 @@ class CreateCacheEvent : public Event {
       : Event(name),
         path_("path_", path),
         data_size_("initial_data_size", data_size),
-        cache_size_("cache_size", cache_size) {
-    InitAttributes({&path_, &data_size_, &cache_size_});
+        cache_size_("cache_size", cache_size),
+        trace_attr_("trace_attr", "cache_sideload_layer", "i",
+                    {&scope_, &path_, &data_size_, &cache_size_}) {
+    InitAttributes({&path_, &data_size_, &cache_size_, &trace_attr_});
   }
 
  private:
   StringAttr path_;
   Int64Attr data_size_;
   Int64Attr cache_size_;
+  StringAttr scope_{"scope", "t"};
+  TraceEventAttr trace_attr_;
 };
 
-class CacheSideloadLayerData : public LayerData {
+class CacheSideloadLayerData : public LayerDataWithTraceEventLogger {
  public:
   CacheSideloadLayerData(const char* pipeline_cache_path)
-      : LayerData(nullptr, ""),
+      : LayerDataWithTraceEventLogger(nullptr, ""),
         implicit_pipeline_cache_path_(pipeline_cache_path) {
-    Event event("cache_sideload_layer_init");
+    LayerInitEvent event("cache_sideload_layer_init", "cache_sideload_layer");
     LogEvent(&event);
   }
 
