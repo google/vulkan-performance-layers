@@ -42,9 +42,8 @@ std::string EventToCSVString(Event &event);
 
 // CSVLogger logs the events in the CSV format to the output given in its
 // constructor. There is no need to add '\n' at the end of the csv_header in the
-// constructor, or the input of the `AddEvent()` method. This is handled by the
-// implementation. The only valid methods after calling `EndLog()` is
-// `EndLog()`.
+// constructor. This is handled by the implementation. The only valid method
+// after calling `EndLog()` is `EndLog()`.
 class CSVLogger : public EventLogger {
  public:
   CSVLogger(const char *csv_header, LogOutput *out)

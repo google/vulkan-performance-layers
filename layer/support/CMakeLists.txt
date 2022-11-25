@@ -23,6 +23,7 @@ target_sources(performance_layers_support_lib INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/layer_utils.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/log_output.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/log_scanner.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/trace_event_logging.cc
 )
 
 target_include_directories(performance_layers_support_lib INTERFACE

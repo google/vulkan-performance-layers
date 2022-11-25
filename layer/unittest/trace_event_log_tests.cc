@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cassert>
 #include <cstdint>
-#include <iomanip>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,155 +20,14 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "layer/support/event_logging.h"
-#include "layer/support/layer_utils.h"
 #include "layer/support/log_output.h"
+#include "layer/support/trace_event_logging.h"
 
 using ::testing::ElementsAre;
 
 namespace performancelayers {
 namespace {
 constexpr int64_t kTestEventTimestamp = 1401;
-
-std::string ValueToJsonString(bool value) { return value ? "true" : "false"; }
-
-std::string ValueToJsonString(int64_t value) { return std::to_string(value); }
-
-std::string ValueToJsonString(const std::vector<int64_t> &values) {
-  std::ostringstream json_str;
-  json_str << "[" << std::hex;
-  size_t e = values.size();
-  for (size_t i = 0; i != e; ++i) {
-    const char *delimiter = i < e - 1 ? "," : "";
-    json_str << "\"0x" << values[i] << "\"" << delimiter;
-  }
-  json_str << "]";
-  return json_str.str();
-}
-
-// Converts the duration to milliseconds, the defualt time unit in the `Trace
-// Event` format.
-std::string ValueToJsonString(Duration value) {
-  return std::to_string(value.ToMilliseconds());
-}
-
-// Converts the timestamp to milliseconds, the defualt time unit in the `Trace
-// Event` format.
-std::string ValueToJsonString(Timestamp value) {
-  return std::to_string(value.ToMilliseconds());
-}
-
-// Appends all given attributes, including the type-specific attribute, to the
-// stream.
-void TraceArgsToJsonString(const std::vector<Attribute *> &args,
-                           std::ostringstream &json_str) {
-  json_str << ", " << std::quoted("args") << " : { ";
-  for (size_t i = 0, e = args.size(); i < e; ++i) {
-    json_str << std::quoted(args[i]->GetName()) << " : ";
-    switch (args[i]->GetValueType()) {
-      case kHashAttribute: {
-        json_str << "\"0x" << std::hex << args[i]->cast<HashAttr>()->GetValue()
-                 << "\"" << std::hex;
-        break;
-      }
-      case ValueType::kTimestamp: {
-        json_str << ValueToJsonString(
-            args[i]->cast<TimestampAttr>()->GetValue());
-        break;
-      }
-      case ValueType::kDuration: {
-        json_str << ValueToJsonString(
-            args[i]->cast<DurationAttr>()->GetValue());
-        break;
-      }
-      case ValueType::kBool: {
-        json_str << ValueToJsonString(args[i]->cast<BoolAttr>()->GetValue());
-        break;
-      }
-      case ValueType::kInt64: {
-        json_str << ValueToJsonString(args[i]->cast<Int64Attr>()->GetValue());
-        break;
-      }
-      case ValueType::kString: {
-        json_str << std::quoted(args[i]->cast<StringAttr>()->GetValue());
-        break;
-      }
-      case ValueType::kVectorInt64: {
-        json_str << ValueToJsonString(
-            args[i]->cast<VectorInt64Attr>()->GetValue());
-        break;
-      }
-      case ValueType::kTraceEvent:
-        break;
-    }
-    if (i + 1 != e) json_str << ", ";
-  }
-  json_str << " }";
-}
-
-// Appends the start timestamp and the duration of a `TraceEventAttr` to the
-// given stream.
-void AppendCompleteEvent(TimestampAttr timestamp,
-                         const TraceEventAttr *trace_event,
-                         std::ostringstream &json_stream) {
-  const DurationAttr *duration_attr = trace_event->GetArg<DurationAttr>();
-  assert(duration_attr && "Duration not found.");
-
-  double duration_ms = duration_attr->GetValue().ToMilliseconds();
-  double end_timestamp_ms = timestamp.GetValue().ToMilliseconds();
-  double start_timestamp_ms = end_timestamp_ms - duration_ms;
-  json_stream << ", " << std::quoted("ts") << " : " << std::fixed
-              << start_timestamp_ms << ", " << std::quoted("dur") << " : "
-              << duration_ms;
-}
-
-// Appends the timestamp and the scope of a `TraceEventAttr` to the given
-// stream.
-void AppendInstantEvent(TimestampAttr timestamp,
-                        const TraceEventAttr *trace_event,
-                        std::ostringstream &json_stream) {
-  const StringAttr *scope_attr = trace_event->GetArg<StringAttr>("scope");
-  assert(scope_attr && "Scope not found.");
-
-  std::string_view scope = scope_attr->GetValue();
-  assert((scope == "g" || scope == "p" || scope == "t") &&
-         "Invalid scope. Scope must be \"g\", \"p\", or \"t\".");
-
-  json_stream << ", " << std::quoted("ts") << " : "
-              << ValueToJsonString(timestamp.GetValue()) << ", "
-              << std::quoted("s") << " : " << std::quoted(scope);
-}
-
-// Converts an `Event` containing `TraceEventAttr` to a JSON string in the Trace
-// Event format.
-std::string EventToTraceEventString(Event &event) {
-  const TraceEventAttr *trace_attr = event.GetAttribute<TraceEventAttr>();
-  assert(trace_attr && "Could not find TraceEventAttr in the event.");
-
-  std::ostringstream json_stream;
-  std::string_view phase_str = trace_attr->GetPhase().GetValue();
-
-  json_stream << "{ " << std::quoted("name") << " : "
-              << std::quoted(event.GetEventName()) << ", " << std::quoted("ph")
-              << " : " << std::quoted(phase_str) << ", " << std::quoted("cat")
-              << " : " << std::quoted(trace_attr->GetCategory().GetValue())
-              << ", " << std::quoted("pid") << " : "
-              << trace_attr->GetPid().GetValue() << ", " << std::quoted("tid")
-              << " : " << trace_attr->GetTid().GetValue();
-
-  if (phase_str == "X") {
-    AppendCompleteEvent(event.GetCreationTime(), trace_attr, json_stream);
-  } else if (phase_str == "i") {
-    AppendInstantEvent(event.GetCreationTime(), trace_attr, json_stream);
-  } else {
-    assert(false &&
-           "Unrecognized phase.\nPhase should be either \"X\" or \"i\".");
-  }
-
-  TraceArgsToJsonString(trace_attr->GetArgs(), json_stream);
-
-  json_stream << " },";
-  return json_stream.str();
-}
 
 // An `InstantEvent` in the Trace Event format. Adds a `scope` variable
 // indicating event's visibility in the trace viewer.
@@ -294,32 +150,6 @@ class InvalidCompleteEvent : public Event {
 
   VectorInt64Attr hash_values_;
   TraceEventAttr trace_event_;
-};
-
-// TraceEventLogger logs the events in the Trace Event format to the output
-// given in its constructor. There is no need to add '\n' at the end of the
-// input of the `AddEvent()` method. This is handled by the implementation. The
-// only valid methods after calling `EndLog()` is `EndLog()`.
-class TraceEventLogger : public EventLogger {
- public:
-  TraceEventLogger(LogOutput *out) : out_(out) { assert(out); }
-
-  void AddEvent(Event *event) override {
-    std::string event_str = EventToTraceEventString(*event);
-    out_->LogLine(event_str);
-  }
-
-  // Writes '[', indicating the start point of the JSON array.
-  void StartLog() override { out_->LogLine("["); }
-
-  // The ']' at the end of the JSON array is optional in the Trace Event format.
-  // We exploit this to allow multiple layers write into the same file.
-  void EndLog() override {}
-
-  void Flush() override { out_->Flush(); }
-
- private:
-  LogOutput *out_ = nullptr;
 };
 
 TEST(TraceEvent, InstantEventCreation) {

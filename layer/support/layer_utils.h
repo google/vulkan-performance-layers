@@ -56,6 +56,17 @@
       reinterpret_cast<PFN_vk##FUNC_NAME_>(gdpa(*device, "vk" #FUNC_NAME_))
 
 namespace performancelayers {
+
+// Returns the thread id of the caller.
+// TODO: This function works only on linux. We should add support for other
+// operating systems.
+int64_t GetThreadId();
+
+// Returns the process id of the caller.
+// TODO: This function works only on linux. We should add support for other
+// operating systems.
+int64_t GetProcessId();
+
 // steady_clock, system_clock, and high_resolution_clock comparison:
 // 1. steady_clock: A monotonic clock. The current value of steady_clock does
 // not matter, but the guarantee that is strictly increasing is useful for

@@ -25,6 +25,7 @@
 #include "layer/support/event_logging.h"
 #include "layer/support/layer_data.h"
 #include "layer/support/layer_utils.h"
+#include "layer/support/trace_event_logging.h"
 
 namespace performancelayers {
 namespace {
@@ -37,6 +38,7 @@ constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_compile_time";
 constexpr char kLayerDescription[] =
     "Stadia Pipeline Compile Time Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_COMPILE_TIME_LOG";
+constexpr char kTraceEventCategory[] = "compile_time_layer";
 
 class CompileTimeEvent : public Event {
  public:
@@ -44,13 +46,16 @@ class CompileTimeEvent : public Event {
                    Duration duration)
       : Event(name, LogLevel::kHigh),
         hash_values_("hashes", hash_values),
-        duration_{"duration", duration} {
-    InitAttributes({&hash_values_, &duration_});
+        duration_{"duration", duration},
+        trace_attr_("trace_attr", kTraceEventCategory, "X",
+                    {&duration_, &hash_values_}) {
+    InitAttributes({&hash_values_, &duration_, &trace_attr_});
   }
 
  private:
   VectorInt64Attr hash_values_;
   DurationAttr duration_;
+  TraceEventAttr trace_attr_;
 };
 
 class ShaderModuleSlackEvent : public Event {
@@ -59,13 +64,16 @@ class ShaderModuleSlackEvent : public Event {
                          Duration duration)
       : Event(name),
         shader_hash_("shader_hash", hash_value),
-        duration_("slack", duration) {
-    InitAttributes({&shader_hash_, &duration_});
+        duration_("slack", duration),
+        trace_attr_("trace_attr", kTraceEventCategory, "X",
+                    {&duration_, &shader_hash_}) {
+    InitAttributes({&shader_hash_, &duration_, &trace_attr_});
   }
 
  private:
   HashAttr shader_hash_;
   DurationAttr duration_;
+  TraceEventAttr trace_attr_;
 };
 
 class CreateShaderEvent : public Event {
@@ -73,25 +81,43 @@ class CreateShaderEvent : public Event {
   CreateShaderEvent(const char* name, int64_t hash_value, Duration duration)
       : Event(name),
         shader_hash_("shader_hash", hash_value),
-        duration_("duration", duration) {
-    InitAttributes({&shader_hash_, &duration_});
+        duration_("duration", duration),
+        trace_attr_("trace_attr", kTraceEventCategory, "X",
+                    {&duration_, &shader_hash_}) {
+    InitAttributes({&shader_hash_, &duration_, &trace_attr_});
   }
 
  private:
   HashAttr shader_hash_;
   DurationAttr duration_;
+  TraceEventAttr trace_attr_;
 };
 
-class CompileTimeLayerData : public LayerData {
+class LayerInitEvent : public Event {
+ public:
+  LayerInitEvent(const char* name)
+      : Event(name),
+        scope_("scope", "g"),
+        trace_attr_("trace_attr", kTraceEventCategory, "i", {&scope_}) {
+    InitAttributes({&trace_attr_});
+  }
+
+ private:
+  StringAttr scope_;
+  TraceEventAttr trace_attr_;
+};
+
+class CompileTimeLayerData : public LayerDataWithTraceEventLogger {
  public:
   CompileTimeLayerData(char* log_filename)
-      : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
-    Event event("compile_time_layer_init");
+      : LayerDataWithTraceEventLogger(log_filename,
+                                      "Pipeline,Compile Time (ns)") {
+    LayerInitEvent event("compile_time_layer_init");
     LogEvent(&event);
   }
 
-  // Used to track the slack between shader module creation and its first use in
-  // pipeline creation.
+  // Used to track the slack between shader module creation and its first use
+  // in pipeline creation.
   struct ShaderModuleSlack {
     std::optional<DurationClock::time_point> creation_end_time = std::nullopt;
     std::optional<DurationClock::time_point> first_use_time = std::nullopt;
@@ -106,9 +132,9 @@ class CompileTimeLayerData : public LayerData {
     shader_module_to_usage_[shader] = {create_end, std::nullopt};
   }
 
-  // Records shader module use in a pipeline creation. If this is the first use
-  // of this shader module, adds an event with the time since shader module
-  // creation.
+  // Records shader module use in a pipeline creation. If this is the first
+  // use of this shader module, adds an event with the time since shader
+  // module creation.
   void RecordShaderModuleUse(VkShaderModule shader) {
     DurationClock::duration first_use_slack_ns = DurationClock::duration::min();
 
@@ -371,10 +397,9 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, EnumerateDeviceLayerProperties,
 // Otherwise we call the *GetProcAddr function for the next layer to get the
 // function to be called.
 
-SPL_LAYER_ENTRY_POINT SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction,
-                                                  GetDeviceProcAddr,
-                                                  (VkDevice device,
-                                                   const char* name)) {
+SPL_LAYER_ENTRY_POINT
+SPL_COMPILE_TIME_LAYER_FUNC(PFN_vkVoidFunction, GetDeviceProcAddr,
+                            (VkDevice device, const char* name)) {
   if (auto func = FunctionInterceptor::GetInterceptedOrNull(name)) {
     return func;
   }
