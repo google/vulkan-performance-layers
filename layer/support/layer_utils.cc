@@ -18,7 +18,7 @@
 #include <cstdint>
 
 #ifdef __linux__
-#include <sys/types.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #endif
 
@@ -26,7 +26,7 @@ namespace performancelayers {
 
 int64_t GetThreadId() {
 #ifdef __linux__
-  static thread_local int64_t tid = gettid();
+  static thread_local int64_t tid = syscall(SYS_gettid);
   return tid;
 #else
   return 0;
