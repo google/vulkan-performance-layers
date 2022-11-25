@@ -89,7 +89,8 @@ class FrameTimeExitEvent : public Event {
  private:
   StringAttr cause_;
   Int64Attr frame_ = Int64Attr("frame", -1);
-  // `Perfetto` only shows the args for instant events with thread-level scope.
+  // `Perfetto` displays the args only for instant events with thread-level
+  // scope.
   StringAttr scope_ = StringAttr("scope", "t");
   TraceEventAttr trace_attr_;
 };
