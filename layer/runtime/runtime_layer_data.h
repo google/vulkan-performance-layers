@@ -33,9 +33,12 @@ class RuntimeEvent : public Event {
         frag_shader_invocations_(
             {"fragment_shader_invocations", frag_shader_invocation}),
         comp_shader_invocations_(
-            {"compute_shader_invocations", comp_shader_invocattion}) {
+            {"compute_shader_invocations", comp_shader_invocattion}),
+        trace_attr_("trace_attr", "runtime_layer", "X",
+                    {&hash_values_, &runtime_, &frag_shader_invocations_,
+                     &comp_shader_invocations_}) {
     InitAttributes({&hash_values_, &runtime_, &frag_shader_invocations_,
-                    &comp_shader_invocations_});
+                    &comp_shader_invocations_, &trace_attr_});
   }
 
  private:
@@ -43,6 +46,7 @@ class RuntimeEvent : public Event {
   DurationAttr runtime_;
   Int64Attr frag_shader_invocations_;
   Int64Attr comp_shader_invocations_;
+  TraceEventAttr trace_attr_;
 };
 
 // A class that contains all of the data that is needed for the functions
@@ -51,7 +55,7 @@ class RuntimeEvent : public Event {
 // The filename for the log file will be retrieved from the environment variable
 // "VK_RUNTIME_LOG".  If it is unset, then stderr will be used as the
 // log file.
-class RuntimeLayerData : public LayerData {
+class RuntimeLayerData : public LayerDataWithTraceEventLogger {
  private:
   struct QueryInfo {
     VkQueryPool timestamp_pool;
@@ -62,10 +66,11 @@ class RuntimeLayerData : public LayerData {
 
  public:
   explicit RuntimeLayerData(char* log_filename)
-      : LayerData(log_filename,
-                  "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
-                  "Shader Invocations") {
-    Event event("runtime_layer_init");
+      : LayerDataWithTraceEventLogger(
+            log_filename,
+            "Pipeline,Run Time (ns),Fragment Shader Invocations,Compute "
+            "Shader Invocations") {
+    LayerInitEvent event("runtime_layer_init", "runtime_layer");
     LogEvent(&event);
   }
 

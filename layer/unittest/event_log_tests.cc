@@ -21,6 +21,21 @@ using ::testing::IsEmpty;
 
 namespace performancelayers {
 namespace {
+class TestEvent : public Event {
+ public:
+  TestEvent(const char *name, int64_t hash_value, Duration duration,
+            LogLevel log_level)
+      : Event(name, log_level),
+        hash_value_{"hash", hash_value},
+        duration_{"duration", duration} {
+    InitAttributes({&duration_, &hash_value_});
+  }
+
+ private:
+  Int64Attr hash_value_;
+  DurationAttr duration_;
+};
+
 // A logger for testing `EventLogger`.
 //
 // Mocks the behavior of the virtual methods and provides getters to check if
@@ -64,19 +79,17 @@ TEST(Event, AttributeCreation) {
   EXPECT_EQ(pipeline.GetValue()[1], hash_val2);
 }
 
-TEST(Event, CreateShaderModuleEventCreation) {
+TEST(Event, TestEventCreation) {
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   Duration duration = Duration::FromNanoseconds(1);
-  CreateShaderModuleEvent compile_event("compile_time", hash_val1, duration,
-                                        LogLevel::kLow);
+  TestEvent compile_event("compile_time", hash_val1, duration, LogLevel::kLow);
   EXPECT_EQ(compile_event.GetNumAttributes(), 2);
 }
 
 TEST(Event, ShaderModuleEventCreation) {
   const int64_t hash_val1 = 0x67d6fd0aaa78a6d8;
   Duration duration = Duration::FromNanoseconds(926318);
-  CreateShaderModuleEvent compile_event("compile_time", hash_val1, duration,
-                                        LogLevel::kLow);
+  TestEvent compile_event("compile_time", hash_val1, duration, LogLevel::kLow);
   ASSERT_EQ(compile_event.GetNumAttributes(), 2);
 }
 
@@ -114,8 +127,8 @@ TEST(EventLogger, TestLoggerFunctionCalls) {
   CreateGraphicsPipelinesEvent pipeline_event(
       "create_graphics_pipeline", hashes, Duration::FromNanoseconds(4),
       LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event(
-      "compile_time", 2, Duration::FromNanoseconds(3), LogLevel::kLow);
+  TestEvent compile_event("compile_time", 2, Duration::FromNanoseconds(3),
+                          LogLevel::kLow);
   TestLogger test_logger;
 
   test_logger.AddEvent(&pipeline_event);
@@ -138,8 +151,8 @@ TEST(EventLogger, FilterLoggerInsert) {
   CreateGraphicsPipelinesEvent pipeline_event(
       "create_graphics_pipeline", hashes, Duration::FromNanoseconds(4),
       LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event(
-      "compile_time", 2, Duration::FromNanoseconds(3), LogLevel::kLow);
+  TestEvent compile_event("compile_time", 2, Duration::FromNanoseconds(3),
+                          LogLevel::kLow);
   TestLogger test_logger;
   FilterLogger filter(&test_logger, LogLevel::kHigh);
   filter.AddEvent(&pipeline_event);
@@ -161,8 +174,8 @@ TEST(EventLogger, BroadcastLoggerFunctionCalls) {
   CreateGraphicsPipelinesEvent pipeline_event(
       "create_graphics_pipeline", hashes, Duration::FromNanoseconds(4),
       LogLevel::kHigh);
-  CreateShaderModuleEvent compile_event(
-      "compile_time", 2, Duration::FromNanoseconds(3), LogLevel::kLow);
+  TestEvent compile_event("compile_time", 2, Duration::FromNanoseconds(3),
+                          LogLevel::kLow);
   TestLogger test_logger1, test_logger2, test_logger3;
   FilterLogger filter(&test_logger1, LogLevel::kHigh);
   BroadcastLogger broadcast1({&filter, &test_logger2});

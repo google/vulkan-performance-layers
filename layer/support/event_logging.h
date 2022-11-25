@@ -262,29 +262,21 @@ class Event {
   std::vector<Attribute *> attributes_;
 };
 
-// An `Event` for the CreateShaderModule function.
-// Example:
-// ```c++
-//    const int64_t create_time_ns = create_end - create_start;
-//    Int64Attr invocations("invocations", 1234);
-//    Int64Attr shader_hash("hash", res.shader_hash);
-//    std::vector<Attribute *> attributes = {&shader_hash, &invocations};
-//    CreateShaderModuleEvent("create_shader_module_ns", attributes,
-//    LogLevel::High);
-// ```
-class CreateShaderModuleEvent : public Event {
+// An `InstantEvent` with a default `TraceEventAttr` indicating layer
+// initialization.
+class LayerInitEvent : public Event {
  public:
-  CreateShaderModuleEvent(const char *name, int64_t hash_value,
-                          Duration duration, LogLevel log_level)
+  LayerInitEvent(const char *name, const char *cat, const char *phase = "g",
+                 LogLevel log_level = LogLevel::kLow)
       : Event(name, log_level),
-        hash_value_{"hash", hash_value},
-        duration_{"duration", duration} {
-    InitAttributes({&duration_, &hash_value_});
+        scope_("scope", phase),
+        trace_attr_("trace_attr", cat, "i", {&scope_}) {
+    InitAttributes({&trace_attr_});
   }
 
  private:
-  Int64Attr hash_value_;
-  DurationAttr duration_;
+  StringAttr scope_;
+  TraceEventAttr trace_attr_;
 };
 
 class CreateGraphicsPipelinesEvent : public Event {

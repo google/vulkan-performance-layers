@@ -93,26 +93,12 @@ class CreateShaderEvent : public Event {
   TraceEventAttr trace_attr_;
 };
 
-class LayerInitEvent : public Event {
- public:
-  LayerInitEvent(const char* name)
-      : Event(name),
-        scope_("scope", "g"),
-        trace_attr_("trace_attr", kTraceEventCategory, "i", {&scope_}) {
-    InitAttributes({&trace_attr_});
-  }
-
- private:
-  StringAttr scope_;
-  TraceEventAttr trace_attr_;
-};
-
 class CompileTimeLayerData : public LayerDataWithTraceEventLogger {
  public:
   CompileTimeLayerData(char* log_filename)
       : LayerDataWithTraceEventLogger(log_filename,
                                       "Pipeline,Compile Time (ns)") {
-    LayerInitEvent event("compile_time_layer_init");
+    LayerInitEvent event("compile_time_layer_init", kTraceEventCategory);
     LogEvent(&event);
   }
 
