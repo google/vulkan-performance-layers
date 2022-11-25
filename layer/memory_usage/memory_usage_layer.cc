@@ -38,20 +38,27 @@ class MemoryUsageEvent : public Event {
   MemoryUsageEvent(const char* name, int64_t current, int64_t peak)
       : Event(name, LogLevel::kHigh),
         current_({"current", current}),
-        peak_({"peak", peak}) {
-    InitAttributes({&current_, &peak_});
+        peak_({"peak", peak}),
+        trace_attr_("trace_attr_", "memory_usage", "i",
+                    {&scope_, &current_, &peak_}) {
+    InitAttributes({&current_, &peak_, &trace_attr_});
   }
 
  private:
   Int64Attr current_;
   Int64Attr peak_;
+  // `Perfetto` displays the args only for instant events with thread-level
+  // scope.
+  StringAttr scope_ = StringAttr("scope", "t");
+  TraceEventAttr trace_attr_;
 };
 
-class MemoryUsageLayerData : public LayerData {
+class MemoryUsageLayerData : public LayerDataWithTraceEventLogger {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
-    Event event("memory_usage_layer_init");
+      : LayerDataWithTraceEventLogger(log_filename,
+                                      "Current (bytes), peak (bytes)") {
+    LayerInitEvent event("memory_usage_layer_init", "memory_usage");
     LogEvent(&event);
   }
 
