@@ -54,13 +54,16 @@ class FrameTimeEvent : public Event {
   FrameTimeEvent(const char* name, Duration time_delta, bool started)
       : Event(name, LogLevel::kHigh),
         time_delta_("frame_time", time_delta),
-        started_("started", started) {
-    InitAttributes({&time_delta_, &started_});
+        started_("started", started),
+        trace_attr_("trace_attr", "frame_time", "X",
+                    {&time_delta_, &started_}) {
+    InitAttributes({&time_delta_, &started_, &trace_attr_});
   }
 
  private:
   DurationAttr time_delta_;
   BoolAttr started_;
+  TraceEventAttr trace_attr_;
 };
 
 // Frametime exit event. Both `application_exit` and `terminated` causes can be
@@ -68,29 +71,39 @@ class FrameTimeEvent : public Event {
 class FrameTimeExitEvent : public Event {
  public:
   FrameTimeExitEvent(const char* name, const std::string& cause)
-      : Event(name), cause_("finish_cause", cause) {
-    InitAttributes({&cause_});
+      : Event(name),
+        cause_("finish_cause", cause),
+        trace_attr_("trace_attr", "frame_time", "i", {&cause_, &scope_}) {
+    InitAttributes({&cause_, &trace_attr_});
   }
 
   FrameTimeExitEvent(const char* name, const std::string& cause, int64_t frame)
-      : Event(name), cause_({"finish_cause", cause}), frame_({"frame", frame}) {
-    InitAttributes({&cause_, &frame_});
+      : Event(name),
+        cause_({"finish_cause", cause}),
+        frame_({"frame", frame}),
+        trace_attr_("trace_attr", "frame_time", "i",
+                    {&cause_, &frame_, &scope_}) {
+    InitAttributes({&cause_, &frame_, &trace_attr_});
   }
 
  private:
   StringAttr cause_;
   Int64Attr frame_ = Int64Attr("frame", -1);
+  // `Perfetto` only shows the args for instant events with thread-level scope.
+  StringAttr scope_ = StringAttr("scope", "t");
+  TraceEventAttr trace_attr_;
 };
 
-class FrameTimeLayerData : public LayerData {
+class FrameTimeLayerData : public LayerDataWithTraceEventLogger {
  public:
   FrameTimeLayerData(char* log_filename, uint64_t exit_frame_num_or_invalid,
                      const char* benchmark_watch_filename,
                      const char* benchmark_start_string)
-      : LayerData(log_filename, "Frame Time (ns),Benchmark State"),
+      : LayerDataWithTraceEventLogger(log_filename,
+                                      "Frame Time (ns),Benchmark State"),
         exit_frame_num_or_invalid_(exit_frame_num_or_invalid),
         benchmark_start_pattern_(StrOrEmpty(benchmark_start_string)) {
-    Event event("frame_time_layer_init");
+    LayerInitEvent event("frame_time_layer_init", "frame_time");
     LogEvent(&event);
     if (!benchmark_watch_filename || strlen(benchmark_watch_filename) == 0)
       return;
