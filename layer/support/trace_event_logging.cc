@@ -12,16 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "layer/support/trace_event_logging.h"
+
 #include <cassert>
+#include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "layer/support/event_logging.h"
 #include "layer/support/layer_utils.h"
 
 namespace performancelayers {
+namespace {
+constexpr size_t kMaxBufferSize = 128;
+
+std::string DoubleToString(double value) {
+  std::string str;
+  // Start with the small-string size.
+  str.resize(str.capacity());
+  // Grow until we have enough space to store the number.
+  while (str.size() < kMaxBufferSize) {
+    auto [end, err] = std::to_chars(str.data(), str.data() + str.size(), value,
+                                    std::chars_format::fixed);
+    if (err == std::errc()) {
+      return str.data();
+    }
+    // Not enough space.
+    str.resize(str.capacity() * 2);
+  }
+  assert(false && "Not enough space");
+  return str;
+}
+
+}  // namespace
+
 std::string ValueToJsonString(bool value) { return value ? "true" : "false"; }
 
 std::string ValueToJsonString(int64_t value) { return std::to_string(value); }
@@ -39,11 +68,11 @@ std::string ValueToJsonString(const std::vector<int64_t> &values) {
 }
 
 std::string ValueToJsonString(Duration value) {
-  return std::to_string(value.ToMilliseconds());
+  return DoubleToString(value.ToMilliseconds());
 }
 
 std::string ValueToJsonString(Timestamp value) {
-  return std::to_string(value.ToMilliseconds());
+  return DoubleToString(value.ToMilliseconds());
 }
 
 void TraceArgsToJsonString(const std::vector<Attribute *> &args,
@@ -98,12 +127,11 @@ void AppendCompleteEvent(TimestampAttr timestamp,
   const DurationAttr *duration_attr = trace_event->GetArg<DurationAttr>();
   assert(duration_attr && "Duration not found.");
 
-  double duration_ms = duration_attr->GetValue().ToMilliseconds();
-  double end_timestamp_ms = timestamp.GetValue().ToMilliseconds();
-  double start_timestamp_ms = end_timestamp_ms - duration_ms;
-  json_stream << ", " << std::quoted("ts") << " : " << std::fixed
-              << start_timestamp_ms << ", " << std::quoted("dur") << " : "
-              << duration_ms;
+  Duration duration = duration_attr->GetValue();
+  Timestamp start_timestamp = timestamp.GetValue() - duration;
+  json_stream << ", " << std::quoted("ts") << " : "
+              << ValueToJsonString(start_timestamp) << ", "
+              << std::quoted("dur") << " : " << ValueToJsonString(duration);
 }
 
 void AppendInstantEvent(TimestampAttr timestamp,
