@@ -43,9 +43,6 @@
 #include "vk_layer_dispatch_table.h"
 
 namespace performancelayers {
-constexpr char kTraceEventLogFileEnvVar[] =
-    "VK_PERFORMANCE_LAYERS_TRACE_EVENT_LOG_FILE";
-
 // Base class for Vulkan dispatchable handle wrappers. Exposes the underlying
 // key to derived classes and implements basic operations like key comparisons
 // and hash.
@@ -129,7 +126,7 @@ namespace performancelayers {
 
 // A class that contains all of the data needed for the functions
 // that this layer will override.
-// It contains two loggers that log the events to the layer's private and the
+// It contains three loggers that log the events to the layer's private and the
 // common files. The constructor and destructor are responsible for starting and
 // ending the loggers respectively. Sample use case for logging an event:
 // ```c++
@@ -139,8 +136,9 @@ namespace performancelayers {
 // ```
 // The `event` end up in the private or common file (or both) based on its log
 // level. The filename for the common log file will be retrieved from the
-// environment variable "VK_COMPILE_TIME_LOG".  If it is unset, then stderr will
-// be used as the log file.
+// environment variable "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE" and
+// "VK_PERFORMANCE_LAYERS_TRACE_EVENT_LOG_FILE". If they are unset, then stderr
+// will be used as the log file.
 class LayerData {
  public:
   using InstanceDispatchMap =
@@ -404,34 +402,13 @@ class LayerData {
 
   FileOutput common_output_;
   FileOutput private_output_;
+  FileOutput trace_output_;
 
   CSVLogger private_logger_;
   FilterLogger private_logger_filter_;
   CommonLogger common_logger_;
+  TraceEventLogger trace_logger_;
   BroadcastLogger broadcast_logger_;
-};
-
-// A wrapper around `LayerData` adding a `TraceEventLogger` to it. The logger
-// writes the logs to the file specified by `kTraceEventLogFileEnvVar`.
-class LayerDataWithTraceEventLogger : public LayerData {
- public:
-  LayerDataWithTraceEventLogger(char* log_filename, const char* header)
-      : LayerData(log_filename, header),
-        trace_output(getenv(kTraceEventLogFileEnvVar)),
-        trace_logger(&trace_output) {
-    trace_logger.StartLog();
-  }
-
-  ~LayerDataWithTraceEventLogger() { trace_logger.EndLog(); }
-
-  void LogEvent(Event* event) {
-    LayerData::LogEvent(event);
-    trace_logger.AddEvent(event);
-  }
-
- private:
-  FileOutput trace_output;
-  TraceEventLogger trace_logger;
 };
 
 }  // namespace performancelayers
