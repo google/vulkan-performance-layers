@@ -49,8 +49,6 @@ std::string DoubleToString(double value) {
   return str;
 }
 
-}  // namespace
-
 std::string ValueToJsonString(bool value) { return value ? "true" : "false"; }
 
 std::string ValueToJsonString(int64_t value) { return std::to_string(value); }
@@ -67,14 +65,20 @@ std::string ValueToJsonString(const std::vector<int64_t> &values) {
   return json_str.str();
 }
 
+// Converts the duration to milliseconds, the defualt time unit in the `Trace
+// Event` format.
 std::string ValueToJsonString(Duration value) {
   return DoubleToString(value.ToMilliseconds());
 }
 
+// Converts the timestamp to milliseconds, the defualt time unit in the `Trace
+// Event` format.
 std::string ValueToJsonString(Timestamp value) {
   return DoubleToString(value.ToMilliseconds());
 }
 
+// Appends all given attributes, including the type-specific attribute, to the
+// stream.
 void TraceArgsToJsonString(const std::vector<Attribute *> &args,
                            std::ostringstream &json_str) {
   json_str << ", " << std::quoted("args") << " : { ";
@@ -121,6 +125,8 @@ void TraceArgsToJsonString(const std::vector<Attribute *> &args,
   json_str << " }";
 }
 
+// Appends the start timestamp and the duration of a `TraceEventAttr` to the
+// given stream.
 void AppendCompleteEvent(TimestampAttr timestamp,
                          const TraceEventAttr *trace_event,
                          std::ostringstream &json_stream) {
@@ -134,6 +140,8 @@ void AppendCompleteEvent(TimestampAttr timestamp,
               << std::quoted("dur") << " : " << ValueToJsonString(duration);
 }
 
+// Appends the timestamp and the scope of a `TraceEventAttr` to the given
+// stream.
 void AppendInstantEvent(TimestampAttr timestamp,
                         const TraceEventAttr *trace_event,
                         std::ostringstream &json_stream) {
@@ -148,6 +156,8 @@ void AppendInstantEvent(TimestampAttr timestamp,
               << ValueToJsonString(timestamp.GetValue()) << ", "
               << std::quoted("s") << " : " << std::quoted(scope);
 }
+
+}  // namespace
 
 std::string EventToTraceEventString(Event &event) {
   const TraceEventAttr *trace_attr = event.GetAttribute<TraceEventAttr>();
