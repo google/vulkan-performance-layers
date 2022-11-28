@@ -49,15 +49,14 @@ class MemoryUsageEvent : public Event {
   Int64Attr peak_;
   // `Perfetto` displays the args only for instant events with thread-level
   // scope.
-  StringAttr scope_ = StringAttr("scope", "t");
+  StringAttr scope_{"scope", "t"};
   TraceEventAttr trace_attr_;
 };
 
-class MemoryUsageLayerData : public LayerDataWithTraceEventLogger {
+class MemoryUsageLayerData : public LayerData {
  public:
   explicit MemoryUsageLayerData(char* log_filename)
-      : LayerDataWithTraceEventLogger(log_filename,
-                                      "Current (bytes), peak (bytes)") {
+      : LayerData(log_filename, "Current (bytes), peak (bytes)") {
     LayerInitEvent event("memory_usage_layer_init", "memory_usage");
     LogEvent(&event);
   }

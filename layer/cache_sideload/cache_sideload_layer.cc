@@ -65,10 +65,10 @@ class CreateCacheEvent : public Event {
   TraceEventAttr trace_attr_;
 };
 
-class CacheSideloadLayerData : public LayerDataWithTraceEventLogger {
+class CacheSideloadLayerData : public LayerData {
  public:
   CacheSideloadLayerData(const char* pipeline_cache_path)
-      : LayerDataWithTraceEventLogger(nullptr, ""),
+      : LayerData(nullptr, ""),
         implicit_pipeline_cache_path_(pipeline_cache_path) {
     LayerInitEvent event("cache_sideload_layer_init", "cache_sideload_layer");
     LogEvent(&event);

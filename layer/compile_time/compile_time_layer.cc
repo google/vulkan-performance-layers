@@ -93,11 +93,10 @@ class CreateShaderEvent : public Event {
   TraceEventAttr trace_attr_;
 };
 
-class CompileTimeLayerData : public LayerDataWithTraceEventLogger {
+class CompileTimeLayerData : public LayerData {
  public:
   CompileTimeLayerData(char* log_filename)
-      : LayerDataWithTraceEventLogger(log_filename,
-                                      "Pipeline,Compile Time (ns)") {
+      : LayerData(log_filename, "Pipeline,Compile Time (ns)") {
     LayerInitEvent event("compile_time_layer_init", kTraceEventCategory);
     LogEvent(&event);
   }

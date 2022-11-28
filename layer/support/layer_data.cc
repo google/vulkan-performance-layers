@@ -28,6 +28,8 @@
 namespace performancelayers {
 namespace {
 constexpr char kEventLogFileEnvVar[] = "VK_PERFORMANCE_LAYERS_EVENT_LOG_FILE";
+constexpr char kTraceEventLogFileEnvVar[] =
+    "VK_PERFORMANCE_LAYERS_TRACE_EVENT_LOG_FILE";
 
 // Returns the first create info of type
 // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO in the chain |create_info|.
@@ -71,10 +73,13 @@ VkLayerDeviceCreateInfo* FindDeviceCreateInfo(
 LayerData::LayerData(char* log_filename, const char* header)
     : common_output_(getenv(kEventLogFileEnvVar)),
       private_output_(log_filename),
+      trace_output_(getenv(kTraceEventLogFileEnvVar)),
       private_logger_(CSVLogger(header, &private_output_)),
       private_logger_filter_(FilterLogger(&private_logger_, LogLevel::kHigh)),
       common_logger_(&common_output_),
-      broadcast_logger_({&private_logger_filter_, &common_logger_}) {
+      trace_logger_(&trace_output_),
+      broadcast_logger_(
+          {&private_logger_filter_, &common_logger_, &trace_logger_}) {
   broadcast_logger_.StartLog();
 }
 
