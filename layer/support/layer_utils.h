@@ -135,6 +135,10 @@ class Timestamp {
         .count();
   }
 
+  Timestamp operator-(const Duration& duration) {
+    return timestamp_ - DurationClock::duration(duration.ToNanoseconds());
+  }
+
  private:
   TimestampClock::time_point timestamp_;
 };
