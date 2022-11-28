@@ -122,7 +122,7 @@ class CompileTimeLayerData : public LayerDataWithTraceEventLogger {
   // use of this shader module, adds an event with the time since shader
   // module creation.
   void RecordShaderModuleUse(VkShaderModule shader) {
-    DurationClock::duration first_use_slack_ns = DurationClock::duration::min();
+    Duration first_use_slack_ns = Duration::Min();
 
     {
       absl::MutexLock lock(&shader_module_usage_lock_);
@@ -138,7 +138,7 @@ class CompileTimeLayerData : public LayerDataWithTraceEventLogger {
       }
     }
 
-    if (first_use_slack_ns != DurationClock::duration::min()) {
+    if (first_use_slack_ns != Duration::Min()) {
       const uint64_t hash = GetShaderHash(shader);
       ShaderModuleSlackEvent event("shader_module_first_use_slack_ns", hash,
                                    first_use_slack_ns);
@@ -230,7 +230,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
   DurationClock::time_point end = Now();
-  DurationClock::duration duration = end - start;
+  Duration duration = end - start;
 
   LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {
@@ -271,7 +271,7 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   auto result = next_proc(device, pipeline_cache, create_info_count,
                           create_infos, alloc_callbacks, pipelines);
   DurationClock::time_point end = Now();
-  DurationClock::duration duration = end - start;
+  Duration duration = end - start;
 
   LayerData::HashVector hashes;
   for (uint32_t i = 0; i < create_info_count; ++i) {

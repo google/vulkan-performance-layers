@@ -91,11 +91,29 @@ DurationClock::time_point Now();
 // represents duration in nanoseconds.
 class Duration {
  public:
+  static Duration Min() { return DurationClock::duration::min(); }
+
   static Duration FromNanoseconds(int64_t nanos) {
     return Duration(DurationClock::duration(nanos));
   }
 
   Duration(DurationClock::duration duration) : duration_{duration} {}
+
+  Duration operator-(const Duration& duration) const {
+    return duration_ - duration.duration_;
+  }
+
+  Duration operator-(const DurationClock::duration& dur) const {
+    return duration_ - dur;
+  }
+
+  bool operator!=(const Duration& dur) const {
+    return duration_ != dur.duration_;
+  }
+
+  bool operator!=(const DurationClock::duration& dur) const {
+    return duration_ != dur;
+  }
 
   int64_t ToNanoseconds() const {
     return std::chrono::nanoseconds(duration_).count();

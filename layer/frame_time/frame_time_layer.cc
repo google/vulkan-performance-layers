@@ -211,8 +211,8 @@ SPL_FRAME_TIME_LAYER_FUNC(VkResult, QueuePresentKHR,
                            const VkPresentInfoKHR* present_info)) {
   auto* layer_data = GetLayerData();
 
-  DurationClock::duration logged_delta = layer_data->GetTimeDelta();
-  if (logged_delta != DurationClock::duration::min()) {
+  Duration logged_delta = layer_data->GetTimeDelta();
+  if (logged_delta != Duration::Min()) {
     FrameTimeEvent event("frame_present", logged_delta,
                          layer_data->HasBenchmarkStarted());
     layer_data->LogEvent(&event);
