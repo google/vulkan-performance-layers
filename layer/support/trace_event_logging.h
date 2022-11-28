@@ -22,37 +22,6 @@
 #include "layer/support/log_output.h"
 
 namespace performancelayers {
-std::string ValueToJsonString(bool value);
-
-std::string ValueToJsonString(int64_t value);
-
-std::string ValueToJsonString(const std::vector<int64_t> &values);
-
-// Converts the duration to milliseconds, the defualt time unit in the `Trace
-// Event` format.
-std::string ValueToJsonString(Duration value);
-
-// Converts the timestamp to milliseconds, the defualt time unit in the `Trace
-// Event` format.
-std::string ValueToJsonString(Timestamp value);
-
-// Appends all given attributes, including the type-specific attribute, to the
-// stream.
-void TraceArgsToJsonString(const std::vector<Attribute *> &args,
-                           std::ostringstream &json_str);
-
-// Appends the start timestamp and the duration of a `TraceEventAttr` to the
-// given stream.
-void AppendCompleteEvent(TimestampAttr timestamp,
-                         const TraceEventAttr *trace_event,
-                         std::ostringstream &json_stream);
-
-// Appends the timestamp and the scope of a `TraceEventAttr` to the given
-// stream.
-void AppendInstantEvent(TimestampAttr timestamp,
-                        const TraceEventAttr *trace_event,
-                        std::ostringstream &json_stream);
-
 // Converts an `Event` containing `TraceEventAttr` to a JSON string in the Trace
 // Event format.
 std::string EventToTraceEventString(Event &event);
