@@ -1,0 +1,27 @@
+[
+{ "name" : "compile_time_layer_init", "ph" : "i", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325401.4216, "s" : "g", "args" : { "scope" : "g" } },
+[
+{ "name" : "runtime_layer_init", "ph" : "i", "cat" : "runtime_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325401.8228, "s" : "g", "args" : { "scope" : "g" } },
+[
+{ "name" : "cache_sideload_layer_init", "ph" : "i", "cat" : "cache_sideload_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325402.1526, "s" : "g", "args" : { "scope" : "g" } },
+[
+{ "name" : "memory_usage_layer_init", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325402.4739, "s" : "g", "args" : { "scope" : "g" } },
+[
+{ "name" : "frame_time_layer_init", "ph" : "i", "cat" : "frame_time", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325402.816, "s" : "g", "args" : { "scope" : "g" } },
+{ "name" : "create_implicit_pipeline_cache", "ph" : "i", "cat" : "cache_sideload_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325426.5469, "s" : "t", "args" : { "scope" : "t", "path_" : "/usr/local/google/home/miladhakimi/performance-layers/build/cache.csv", "initial_data_size" : 0, "cache_size" : 32 } },
+{ "name" : "create_shader_module_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325438.8364, "dur" : 0.101471, "args" : { "duration" : 0.101471, "shader_hash" : "0x57dad0c231e4e5ce" } },
+{ "name" : "create_shader_module_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325439.0422, "dur" : 0.0318, "args" : { "duration" : 0.0318, "shader_hash" : "0x92cc37a4b4360ca9" } },
+{ "name" : "merge_implicit_pipeline_cache", "ph" : "i", "cat" : "cache_sideload_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325439.1516, "s" : "t", "args" : { "scope" : "t", "result" : "success" } },
+{ "name" : "shader_module_first_use_slack_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325438.8508, "dur" : 0.364469, "args" : { "slack" : 0.364469, "shader_hash" : "0x57dad0c231e4e5ce" } },
+{ "name" : "shader_module_first_use_slack_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325439.0508, "dur" : 0.20382, "args" : { "slack" : 0.20382, "shader_hash" : "0x92cc37a4b4360ca9" } },
+{ "name" : "create_graphics_pipelines", "ph" : "X", "cat" : "compile_time_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325439.438, "dur" : 0.68754, "args" : { "duration" : 0.68754, "hashes" : ["0x57dad0c231e4e5ce", "0x92cc37a4b4360ca9"] } },
+{ "name" : "memory_usage_present", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325440.6238, "s" : "t", "args" : { "scope" : "t", "current" : 777792, "peak" : 777792 } },
+{ "name" : "memory_usage_present", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325450.5503, "s" : "t", "args" : { "scope" : "t", "current" : 777792, "peak" : 777792 } },
+{ "name" : "frame_present", "ph" : "X", "cat" : "frame_time", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325440.713, "dur" : 9.904828, "args" : { "frame_time" : 9.904828, "started" : true } },
+{ "name" : "memory_usage_present", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325452.1138, "s" : "t", "args" : { "scope" : "t", "current" : 777792, "peak" : 777792 } },
+{ "name" : "frame_present", "ph" : "X", "cat" : "frame_time", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325450.6128, "dur" : 1.55622, "args" : { "frame_time" : 1.55622, "started" : true } },
+{ "name" : "memory_usage_present", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325453.5637, "s" : "t", "args" : { "scope" : "t", "current" : 777792, "peak" : 777792 } },
+{ "name" : "frame_present", "ph" : "X", "cat" : "frame_time", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325452.1687, "dur" : 1.447929, "args" : { "frame_time" : 1.447929, "started" : true } },
+{ "name" : "pipeline_execution", "ph" : "X", "cat" : "runtime_layer", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325454.989, "dur" : 0.190671, "args" : { "pipeline" : ["0x57dad0c231e4e5ce", "0x92cc37a4b4360ca9"], "runtime" : 0.190671, "fragment_shader_invocations" : 75808, "compute_shader_invocations" : 0 } },
+{ "name" : "memory_usage_destroy_device", "ph" : "i", "cat" : "memory_usage", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325455.6445, "s" : "t", "args" : { "scope" : "t", "current" : 0, "peak" : 777792 } },
+{ "name" : "frame_time_layer_exit", "ph" : "i", "cat" : "frame_time", "pid" : 1920532, "tid" : 1920532, "ts" : 1669687325459.1816, "s" : "t", "args" : { "finish_cause" : "application_exit", "scope" : "t" } },
