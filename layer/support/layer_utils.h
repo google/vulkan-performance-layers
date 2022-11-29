@@ -154,7 +154,7 @@ class Timestamp {
   }
 
   Timestamp operator-(const Duration& duration) {
-    return timestamp_ - DurationClock::duration(duration.ToNanoseconds());
+    return timestamp_ - TimestampClock::duration(duration.ToNanoseconds());
   }
 
  private:
