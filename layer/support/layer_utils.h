@@ -85,6 +85,22 @@ TimestampClock::time_point GetTimestamp();
 // Returns a monotonic time_point to be used for measuring duration.
 DurationClock::time_point Now();
 
+namespace detail {
+template <typename DurationT>
+double DurationToMilliseconds(const DurationT& duration) {
+  using Millis =
+      std::chrono::duration<double, std::chrono::milliseconds::period>;
+  return std::chrono::duration_cast<Millis>(duration).count();
+}
+
+template <typename DurationT>
+int64_t DurationToNanoseconds(const DurationT& duration) {
+  using Nanos =
+      std::chrono::duration<int64_t, std::chrono::nanoseconds::period>;
+  return std::chrono::duration_cast<Nanos>(duration).count();
+}
+}  // namespace detail
+
 // A wrapper around `DurationClock::duration` to keep track of the time unit.
 // When the `Duration` is used, we know it's either created from a
 // `DurationClock::duration` that has nanosecond-level precision or an int that
@@ -94,7 +110,7 @@ class Duration {
   static Duration Min() { return DurationClock::duration::min(); }
 
   static Duration FromNanoseconds(int64_t nanos) {
-    return Duration(DurationClock::duration(nanos));
+    return std::chrono::nanoseconds(nanos);
   }
 
   Duration(DurationClock::duration duration) : duration_{duration} {}
@@ -116,11 +132,11 @@ class Duration {
   }
 
   int64_t ToNanoseconds() const {
-    return std::chrono::nanoseconds(duration_).count();
+    return detail::DurationToNanoseconds(duration_);
   }
 
   double ToMilliseconds() const {
-    return std::chrono::duration<double, std::milli>(duration_).count();
+    return detail::DurationToMilliseconds(duration_);
   }
 
  private:
@@ -137,27 +153,29 @@ class Timestamp {
   // has no epoch information. To create a time_point from it, it should be
   // converted into a duration representing the offset from the zero epoch.
   static Timestamp FromNanoseconds(int64_t nanos) {
-    return Timestamp(
-        TimestampClock::time_point(TimestampClock::duration(nanos)));
+    std::chrono::duration<int64_t, std::chrono::nanoseconds::period> dur(nanos);
+    return {
+        GetCanonicalEpoch() +
+        std::chrono::duration_cast<TimestampClock::time_point::duration>(dur)};
   }
 
   Timestamp(TimestampClock::time_point timestamp) : timestamp_{timestamp} {}
 
   int64_t ToNanoseconds() const {
-    return std::chrono::nanoseconds(timestamp_.time_since_epoch()).count();
+    return detail::DurationToNanoseconds(timestamp_ - GetCanonicalEpoch());
   }
 
   double ToMilliseconds() const {
-    return std::chrono::duration<double, std::milli>(
-               timestamp_.time_since_epoch())
-        .count();
+    return detail::DurationToMilliseconds(timestamp_ - GetCanonicalEpoch());
   }
 
   Timestamp operator-(const Duration& duration) {
-    return timestamp_ - TimestampClock::duration(duration.ToNanoseconds());
+    return FromNanoseconds(ToNanoseconds() - duration.ToNanoseconds());
   }
 
  private:
+  static TimestampClock::time_point GetCanonicalEpoch() { return {}; }
+
   TimestampClock::time_point timestamp_;
 };
 
