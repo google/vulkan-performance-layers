@@ -24,6 +24,7 @@
 #include "layer/support/trace_event_logging.h"
 
 using ::testing::ElementsAre;
+using ::testing::MatchesRegex;
 
 namespace performancelayers {
 namespace {
@@ -195,8 +196,9 @@ TEST(TraceEvent, InstantEventToString) {
   InstantEvent instant_event("compile_time_init", kTestEventTimestamp,
                              "compile_time", 123, 321);
   std::string_view expected_str =
-      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
-  EXPECT_EQ(EventToTraceEventString(instant_event), expected_str);
+      R"(\{ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "s" : "g", "args" : \{ "scope" : "g" \} \},)";
+  EXPECT_THAT(EventToTraceEventString(instant_event),
+              MatchesRegex(expected_str));
 }
 
 TEST(TraceEvent, CompleteEventToString) {
@@ -208,8 +210,9 @@ TEST(TraceEvent, CompleteEventToString) {
                                            123, 321);
 
   std::string_view expected_str =
-      R"({ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : 0.000401, "dur" : 0.001, "args" : { "duration" : 0.001 } },)";
-  EXPECT_EQ(EventToTraceEventString(complete_event), expected_str);
+      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "dur" : 0.001, "args" : \{ "duration" : 0.001 \} \},)";
+  EXPECT_THAT(EventToTraceEventString(complete_event),
+              MatchesRegex(expected_str));
 }
 
 #ifndef NDEBUG
@@ -259,8 +262,8 @@ TEST(TraceEventLogger, MethodCheck) {
   // Checks double `EndLog` calls.
   logger.EndLog();
   std::string_view expected_str =
-      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
-  EXPECT_THAT(out.GetLog(), ElementsAre("[", expected_str));
+      R"(\{ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "s" : "g", "args" : \{ "scope" : "g" \} \},)";
+  EXPECT_THAT(out.GetLog(), ElementsAre("[", MatchesRegex(expected_str)));
 }
 
 TEST(TraceEventLogger, LogDifferentTypes) {
@@ -283,12 +286,12 @@ TEST(TraceEventLogger, LogDifferentTypes) {
   logger.EndLog();
 
   std::string_view instant_expected_str =
-      R"({ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : 0.001401, "s" : "g", "args" : { "scope" : "g" } },)";
+      R"(\{ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "s" : "g", "args" : \{ "scope" : "g" \} \},)";
 
   std::string_view complete_expected_str =
-      R"({ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 321, "tid" : 123, "ts" : 0.000401, "dur" : 0.001, "args" : { "duration" : 0.001 } },)";
-  EXPECT_THAT(out.GetLog(),
-              ElementsAre("[", instant_expected_str, complete_expected_str));
+      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 321, "tid" : 123, "ts" : ([0-9\.]+), "dur" : 0.001, "args" : \{ "duration" : 0.001 \} \},)";
+  EXPECT_THAT(out.GetLog(), ElementsAre("[", MatchesRegex(instant_expected_str),
+                                        MatchesRegex(complete_expected_str)));
 }
 
 }  // namespace
