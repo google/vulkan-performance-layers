@@ -4,17 +4,17 @@
 ; consistent.
 ; Counts the number of memory and frame time logs and check if they are
 ; as expected.
-; CHECK-DAG:  compile_time_layer_init,timestamp:{{[0-9]+}}
-; CHECK-DAG:  runtime_layer_init,timestamp:{{[0-9]+}}
-; CHECK-DAG:  memory_usage_layer_init,timestamp:{{[0-9]+}}
-; CHECK-DAG:  frame_time_layer_init,timestamp:{{[0-9]+}}
-; CHECK:      create_shader_module_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER1:0x[a-zA-Z0-9]+]],duration:{{[0-9]+}}
-; CHECK-NEXT: create_shader_module_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER2:0x[a-zA-Z0-9]+]],duration:{{[0-9]+}}
-; CHECK:      shader_module_first_use_slack_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER1]],slack:{{[0-9]+}}
-; CHECK-NEXT: shader_module_first_use_slack_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER2]],slack:{{[0-9]+}}
-; CHECK:      create_graphics_pipelines,timestamp:{{[0-9]+}},hashes:"[[[SHADER1]],[[SHADER2]]]",duration:{{[0-9]+}}
-; CHECK-DAG:  memory_usage_present,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}}
-; CHECK-DAG:  frame_present,timestamp:{{[0-9]+}},frame_time:{{[0-9]+}},started:{{[0-9]+}}
-; CHECK-DAG:  pipeline_execution,timestamp:{{[0-9]+}},pipeline:"[[[SHADER1]],[[SHADER2]]]",runtime:{{[0-9]+}},fragment_shader_invocations:{{[0-9]+}},compute_shader_invocations:{{[0-9]+}}
-; CHECK-DAG:  memory_usage_destroy_device,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}}
-; CHECK-DAG:  frame_time_layer_exit,timestamp:{{[0-9]+}},finish_cause:application_exit
+; CHECK-DAG:  compile_time_layer_init,timestamp:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  runtime_layer_init,timestamp:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  memory_usage_layer_init,timestamp:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  frame_time_layer_init,timestamp:{{[0-9]+}},trace_attr:
+; CHECK:      create_shader_module_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER1:0x[a-zA-Z0-9]+]],duration:{{[0-9]+}},trace_attr:
+; CHECK-NEXT: create_shader_module_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER2:0x[a-zA-Z0-9]+]],duration:{{[0-9]+}},trace_attr:
+; CHECK:      shader_module_first_use_slack_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER1]],slack:{{[0-9]+}},trace_attr:
+; CHECK-NEXT: shader_module_first_use_slack_ns,timestamp:{{[0-9]+}},shader_hash:[[SHADER2]],slack:{{[0-9]+}},trace_attr:
+; CHECK:      create_graphics_pipelines,timestamp:{{[0-9]+}},hashes:"[[[SHADER1]],[[SHADER2]]]",duration:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  memory_usage_present,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  frame_present,timestamp:{{[0-9]+}},frame_time:{{[0-9]+}},started:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  pipeline_execution,timestamp:{{[0-9]+}},pipeline:"[[[SHADER1]],[[SHADER2]]]",runtime:{{[0-9]+}},fragment_shader_invocations:{{[0-9]+}},compute_shader_invocations:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  memory_usage_destroy_device,timestamp:{{[0-9]+}},current:{{[0-9]+}},peak:{{[0-9]+}},trace_attr:
+; CHECK-DAG:  frame_time_layer_exit,timestamp:{{[0-9]+}},finish_cause:application_exit,trace_attr:

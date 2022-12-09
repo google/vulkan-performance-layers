@@ -24,6 +24,24 @@ using ::testing::ElementsAre;
 
 namespace performancelayers {
 namespace {
+
+class TestEventWithTraceAttr : public Event {
+ public:
+  TestEventWithTraceAttr(const char* name, Duration time_delta, bool started)
+      : Event(name, LogLevel::kHigh),
+        time_delta_("frame_time", time_delta),
+        started_("started", started),
+        trace_attr_("trace_attr", "frame_time", "X",
+                    {&time_delta_, &started_}) {
+    InitAttributes({&time_delta_, &started_, &trace_attr_});
+  }
+
+ private:
+  DurationAttr time_delta_;
+  BoolAttr started_;
+  TraceEventAttr trace_attr_;
+};
+
 // This is a simple test and only calls the methods to make sure the
 // logger doesn't crash.
 TEST(CSVLogger, MethodCheck) {
@@ -41,6 +59,19 @@ TEST(CSVLogger, MethodCheck) {
   logger.EndLog();
   std::string_view event_str = "\"[0x2,0x3]\",1";
   EXPECT_THAT(out.GetLog(), ElementsAre("pipeline,duration", event_str));
+}
+
+TEST(CSVLogger, TraceEventAttributeIgnored) {
+  StringOutput out = {};
+  CSVLogger logger("frame_time,started", &out);
+  Duration frame_time = Duration::FromNanoseconds(123);
+  TestEventWithTraceAttr frame_time_event("frame_time", frame_time, true);
+  logger.StartLog();
+  logger.AddEvent(&frame_time_event);
+  logger.Flush();
+  logger.EndLog();
+  std::string_view event_str = "123,1";
+  EXPECT_THAT(out.GetLog(), ElementsAre("frame_time,started", event_str));
 }
 
 }  // namespace
