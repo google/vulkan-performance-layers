@@ -63,17 +63,17 @@ for file in "${output_files[@]}"; do
 done
 
 # Check that log file's contents match what is expected.
-FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" --input-file \
-  "${OUTPUT_DIR}"/compile_time.csv
+FileCheck "${PROJECT_ROOT_DIR}/test/check_compile_time_log.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/compile_time.csv
 
-FileCheck "${PROJECT_ROOT_DIR}/test/check_run_time_log.txt" --input-file \
-  "${OUTPUT_DIR}"/run_time.csv
+FileCheck "${PROJECT_ROOT_DIR}/test/check_run_time_log.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/run_time.csv
 
-FileCheck "${PROJECT_ROOT_DIR}/test/check_memory_usage_log.txt" --input-file \
-  "${OUTPUT_DIR}"/memory_usage.csv
+FileCheck "${PROJECT_ROOT_DIR}/test/check_memory_usage_log.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/memory_usage.csv
 
-FileCheck "${PROJECT_ROOT_DIR}/test/check_frame_time_log.txt" --input-file \
-  "${OUTPUT_DIR}"/frame_time.csv
+FileCheck "${PROJECT_ROOT_DIR}/test/check_frame_time_log.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/frame_time.csv
 
-FileCheck "${PROJECT_ROOT_DIR}/test/check_event_log.txt" --input-file \
-  "${OUTPUT_DIR}"/events.log
+FileCheck "${PROJECT_ROOT_DIR}/test/check_event_log.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/events.log

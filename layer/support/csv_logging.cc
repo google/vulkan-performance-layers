@@ -17,7 +17,6 @@
 #include <sstream>
 #include <string>
 
-#include "layer/support/debug_logging.h"
 #include "layer/support/event_logging.h"
 #include "layer/support/layer_utils.h"
 
@@ -57,44 +56,47 @@ std::string ValueToCSVString(Timestamp value) {
 std::string EventToCSVString(Event &event) {
   const std::vector<Attribute *> &attributes = event.GetAttributes();
 
+  // Remove attributes that should be ignored.
+  std::vector<Attribute *> filtered_attributes;
+  std::copy_if(attributes.begin(), attributes.end(),
+               std::back_inserter(filtered_attributes), [](Attribute *att) {
+                 return att->GetValueType() != ValueType::kTraceEvent;
+               });
+
   std::ostringstream csv_str;
-  for (size_t i = 0, e = attributes.size(); i != e; ++i) {
-    switch (attributes[i]->GetValueType()) {
+  for (size_t i = 0, e = filtered_attributes.size(); i != e; ++i) {
+    Attribute *att = filtered_attributes[i];
+    switch (att->GetValueType()) {
       case ValueType::kHashAttribute: {
-        csv_str << "0x" << std::hex
-                << attributes[i]->cast<HashAttr>()->GetValue();
+        csv_str << "0x" << std::hex << att->cast<HashAttr>()->GetValue();
         break;
       }
       case ValueType::kTimestamp: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<TimestampAttr>()->GetValue());
+        csv_str << ValueToCSVString(att->cast<TimestampAttr>()->GetValue());
         break;
       }
       case ValueType::kDuration: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<DurationAttr>()->GetValue());
+        csv_str << ValueToCSVString(att->cast<DurationAttr>()->GetValue());
         break;
       }
       case ValueType::kBool: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<BoolAttr>()->GetValue());
+        csv_str << ValueToCSVString(att->cast<BoolAttr>()->GetValue());
         break;
       }
       case ValueType::kInt64: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<Int64Attr>()->GetValue());
+        csv_str << ValueToCSVString(att->cast<Int64Attr>()->GetValue());
         break;
       }
       case ValueType::kString: {
-        csv_str << attributes[i]->cast<StringAttr>()->GetValue();
+        csv_str << att->cast<StringAttr>()->GetValue();
         break;
       }
       case ValueType::kVectorInt64: {
-        csv_str << ValueToCSVString(
-            attributes[i]->cast<VectorInt64Attr>()->GetValue());
+        csv_str << ValueToCSVString(att->cast<VectorInt64Attr>()->GetValue());
         break;
       }
       case ValueType::kTraceEvent:
+        assert(false);
         break;
     }
     if (i + 1 != e) csv_str << ",";

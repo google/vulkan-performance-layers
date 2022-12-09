@@ -39,7 +39,7 @@ class MemoryUsageEvent : public Event {
       : Event(name, LogLevel::kHigh),
         current_({"current", current}),
         peak_({"peak", peak}),
-        trace_attr_("trace_attr_", "memory_usage", "i",
+        trace_attr_("trace_attr", "memory_usage", "i",
                     {&scope_, &current_, &peak_}) {
     InitAttributes({&current_, &peak_, &trace_attr_});
   }
