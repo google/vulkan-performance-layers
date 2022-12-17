@@ -61,8 +61,8 @@ class CompileTimeEvent : public Event {
 class ShaderModuleSlackEvent : public Event {
  public:
   ShaderModuleSlackEvent(const char* name, int64_t hash_value,
-                         Duration duration)
-      : Event(name),
+                         Duration duration, Timestamp first_use)
+      : Event(name, first_use.ToNanoseconds()),
         shader_hash_("shader_hash", hash_value),
         duration_("slack", duration),
         trace_attr_("trace_attr", kTraceEventCategory, "X",
@@ -104,13 +104,12 @@ class CompileTimeLayerData : public LayerData {
   // Used to track the slack between shader module creation and its first use
   // in pipeline creation.
   struct ShaderModuleSlack {
-    std::optional<DurationClock::time_point> creation_end_time = std::nullopt;
-    std::optional<DurationClock::time_point> first_use_time = std::nullopt;
+    std::optional<Timestamp> creation_end_time = std::nullopt;
+    std::optional<Timestamp> first_use_time = std::nullopt;
   };
 
   // Records the time |create_end| of the |shader| creation.
-  void RecordShaderModuleCreation(VkShaderModule shader,
-                                  DurationClock::time_point create_end) {
+  void RecordShaderModuleCreation(VkShaderModule shader, Timestamp create_end) {
     absl::MutexLock lock(&shader_module_usage_lock_);
     assert(!shader_module_to_usage_.contains(shader) &&
            "Shader already created");
@@ -120,7 +119,7 @@ class CompileTimeLayerData : public LayerData {
   // Records shader module use in a pipeline creation. If this is the first
   // use of this shader module, adds an event with the time since shader
   // module creation.
-  void RecordShaderModuleUse(VkShaderModule shader) {
+  void RecordShaderModuleUse(VkShaderModule shader, Timestamp pipeline_start) {
     Duration first_use_slack_ns = Duration::Min();
 
     {
@@ -131,7 +130,7 @@ class CompileTimeLayerData : public LayerData {
       assert(usage_info.creation_end_time.has_value());
 
       if (!usage_info.first_use_time) {
-        usage_info.first_use_time = Now();
+        usage_info.first_use_time = pipeline_start;
         first_use_slack_ns =
             *usage_info.first_use_time - *usage_info.creation_end_time;
       }
@@ -140,7 +139,7 @@ class CompileTimeLayerData : public LayerData {
     if (first_use_slack_ns != Duration::Min()) {
       const uint64_t hash = GetShaderHash(shader);
       ShaderModuleSlackEvent event("shader_module_first_use_slack_ns", hash,
-                                   first_use_slack_ns);
+                                   first_use_slack_ns, pipeline_start);
       LogEvent(&event);
     }
   }
@@ -214,11 +213,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
                              const VkAllocationCallbacks* alloc_callbacks,
                              VkPipeline* pipelines)) {
   CompileTimeLayerData* layer_data = GetLayerData();
-
-  for (uint32_t i = 0; i != create_info_count; ++i) {
-    layer_data->RecordShaderModuleUse(create_infos[i].stage.module);
-  }
-
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CreateComputePipelines);
 
@@ -238,6 +232,14 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateComputePipelines,
   }
   std::vector<int64_t> pipeline_hashes(hashes.begin(), hashes.end());
   CompileTimeEvent event("create_compute_pipelines", pipeline_hashes, duration);
+
+  // Creating Slack events for the shaders in the pipeline.
+  Timestamp pipeline_start = event.GetCreationTime().GetValue() - duration;
+  for (uint32_t i = 0; i != create_info_count; ++i) {
+    layer_data->RecordShaderModuleUse(create_infos[i].stage.module,
+                                      pipeline_start);
+  }
+
   layer_data->LogEvent(&event);
   return result;
 }
@@ -251,14 +253,6 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
                              const VkAllocationCallbacks* alloc_callbacks,
                              VkPipeline* pipelines)) {
   CompileTimeLayerData* layer_data = GetLayerData();
-
-  for (uint32_t i = 0; i != create_info_count; ++i) {
-    const uint32_t stage_count = create_infos[i].stageCount;
-    for (uint32_t stage_idx = 0; stage_idx != stage_count; ++stage_idx) {
-      layer_data->RecordShaderModuleUse(
-          create_infos[i].pStages[stage_idx].module);
-    }
-  }
 
   auto next_proc = layer_data->GetNextDeviceProcAddr(
       device, &VkLayerDispatchTable::CreateGraphicsPipelines);
@@ -280,6 +274,17 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateGraphicsPipelines,
   std::vector<int64_t> pipeline_hashes(hashes.begin(), hashes.end());
   CompileTimeEvent event("create_graphics_pipelines", pipeline_hashes,
                          duration);
+
+  // Creating Slack events for the shaders in the pipeline.
+  Timestamp pipeline_start = event.GetCreationTime().GetValue() - duration;
+  for (uint32_t i = 0; i != create_info_count; ++i) {
+    const uint32_t stage_count = create_infos[i].stageCount;
+    for (uint32_t stage_idx = 0; stage_idx != stage_count; ++stage_idx) {
+      layer_data->RecordShaderModuleUse(
+          create_infos[i].pStages[stage_idx].module, pipeline_start);
+    }
+  }
+
   layer_data->LogEvent(&event);
   return result;
 }
@@ -297,9 +302,11 @@ SPL_COMPILE_TIME_LAYER_FUNC(VkResult, CreateShaderModule,
                                      shader_module);
 
   if (res.result == VK_SUCCESS) {
-    layer_data->RecordShaderModuleCreation(*shader_module, res.create_end);
     CreateShaderEvent event("create_shader_module_ns", res.shader_hash,
                             res.create_end - res.create_start);
+    layer_data->RecordShaderModuleCreation(*shader_module,
+                                           event.GetCreationTime().GetValue());
+
     layer_data->LogEvent(&event);
   }
   return res.result;

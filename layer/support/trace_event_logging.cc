@@ -173,7 +173,6 @@ std::string EventToTraceEventString(Event &event) {
               << ", " << std::quoted("pid") << " : "
               << trace_attr->GetPid().GetValue() << ", " << std::quoted("tid")
               << " : " << trace_attr->GetTid().GetValue();
-
   if (phase_str == "X") {
     AppendCompleteEvent(event.GetCreationTime(), trace_attr, json_stream);
   } else if (phase_str == "i") {
