@@ -77,3 +77,6 @@ FileCheck "${PROJECT_ROOT_DIR}/test/check_frame_time_log.txt" \
 
 FileCheck "${PROJECT_ROOT_DIR}/test/check_event_log.txt" \
   --match-full-lines --input-file "${OUTPUT_DIR}"/events.log
+
+FileCheck "${PROJECT_ROOT_DIR}/test/check_trace_event.txt" \
+  --match-full-lines --input-file "${OUTPUT_DIR}"/trace_events.log
