@@ -21,3 +21,4 @@ please submit a patch to this file to add yourself.
    * Memory usage layer.
 0. Milad Hakimi <miladhakimi@google.com>
    * Runtime tests with `vkcube` & `FileCheck`.
+   * Chrome Event Tracing format support.
