@@ -173,6 +173,12 @@ class Timestamp {
     return FromNanoseconds(ToNanoseconds() - duration.ToNanoseconds());
   }
 
+  Duration operator-(const Timestamp& timestamp) {
+    assert(timestamp_ > timestamp.timestamp_);
+    return Duration::FromNanoseconds(
+        detail::DurationToNanoseconds(timestamp_ - timestamp.timestamp_));
+  }
+
  private:
   static TimestampClock::time_point GetCanonicalEpoch() { return {}; }
 
