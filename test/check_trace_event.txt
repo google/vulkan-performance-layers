@@ -1,0 +1,19 @@
+; Checks the pattern of the trace event log file. Makes sure the data rows
+; corresponding to each layer have the correct format.
+; Checks the shader hashes across different rows and guarantees they are
+; consistent.
+
+; CHECK-DAG:  { "name" : "compile_time_layer_init", "ph" : "i", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "g", "args" : { "scope" : "g" } },
+; CHECK-DAG:  { "name" : "runtime_layer_init", "ph" : "i", "cat" : "runtime_layer", "pid" :  {{[0-9]+}}, "tid" :  {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "g", "args" : { "scope" : "g" } },
+; CHECK-DAG:  { "name" : "memory_usage_layer_init", "ph" : "i", "cat" : "memory_usage", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "g", "args" : { "scope" : "g" } },
+; CHECK-DAG:  { "name" : "frame_time_layer_init", "ph" : "i", "cat" : "frame_time", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "g", "args" : { "scope" : "g" } },
+; CHECK:      { "name" : "create_shader_module_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "duration" : {{[0-9]+\.[0-9]+}}, "shader_hash" : [[SHADER1:"0x[a-zA-Z0-9]+"]] } },
+; CHECK-NEXT: { "name" : "create_shader_module_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "duration" : {{[0-9]+\.[0-9]+}}, "shader_hash" : [[SHADER2:"0x[a-zA-Z0-9]+"]] } },
+; CHECK:      { "name" : "shader_module_first_use_slack_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "slack" : {{[0-9]+\.[0-9]+}}, "shader_hash" : [[SHADER1]] } },
+; CHECK-NEXT: { "name" : "shader_module_first_use_slack_ns", "ph" : "X", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "slack" : {{[0-9]+\.[0-9]+}}, "shader_hash" : [[SHADER2]] } },
+; CHECK:      { "name" : "create_graphics_pipelines", "ph" : "X", "cat" : "compile_time_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "duration" : {{[0-9]+\.[0-9]+}}, "hashes" : [[[SHADER1]], [[SHADER2]]] } },
+; CHECK-DAG:  { "name" : "memory_usage_present", "ph" : "i", "cat" : "memory_usage",  "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "t", "args" : { "scope" : "t", "current" : {{[0-9]+}}, "peak" : {{[0-9]+}} } },
+; CHECK-DAG:  { "name" : "frame_present", "ph" : "X", "cat" : "frame_time", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "frame_time" : {{[0-9]+\.[0-9]+}}, "started" : true } },
+; CHECK-DAG:  { "name" : "pipeline_execution", "ph" : "X", "cat" : "runtime_layer", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "dur" : {{[0-9]+\.[0-9]+}}, "args" : { "pipeline" : [[[SHADER1]], [[SHADER2]]], "runtime" : {{[0-9]+\.[0-9]+}}, "fragment_shader_invocations" : {{[0-9]+}}, "compute_shader_invocations" : {{[0-9]+}} } },
+; CHECK-DAG:  { "name" : "memory_usage_destroy_device", "ph" : "i", "cat" : "memory_usage", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "t", "args" : { "scope" : "t", "current" : {{[0-9]+}}, "peak" : {{[0-9]+}} } },
+; CHECK-DAG:  { "name" : "frame_time_layer_exit", "ph" : "i", "cat" : "frame_time", "pid" : {{[0-9]+}}, "tid" : {{[0-9]+}}, "ts" : {{[0-9]+\.[0-9]+}}, "s" : "t", "args" : { "finish_cause" : "application_exit", "scope" : "t" } },
