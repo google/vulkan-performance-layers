@@ -23,13 +23,20 @@
 #include "layer/support/layer_utils.h"
 #include "runtime_layer_data.h"
 
+#if defined(__ANDROID__)
+// https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderLayerInterface.md#layer-interface-version-0
+# define EXPOSE_LAYER_INTERFACE_VERSION_0
+#endif
+
 namespace {
 // ----------------------------------------------------------------------------
 // Layer book-keeping information
 // ----------------------------------------------------------------------------
 
+#define LAYER_NAME "VK_LAYER_STADIA_pipeline_runtime"
+
 constexpr uint32_t kRuntimeLayerVersion = 1;
-constexpr char kLayerName[] = "VK_LAYER_STADIA_pipeline_runtime";
+constexpr char kLayerName[] = LAYER_NAME;
 constexpr char kLayerDescription[] =
     "Stadia Pipeline Pipeline Runtime Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_RUNTIME_LOG";
@@ -483,3 +490,59 @@ SPL_LAYER_ENTRY_POINT SPL_RUNTIME_LAYER_FUNC(PFN_vkVoidFunction,
   assert(next_get_proc_addr && next_get_proc_addr != VK_NULL_HANDLE);
   return next_get_proc_addr(instance, name);
 }
+
+#if defined(EXPOSE_LAYER_INTERFACE_VERSION_0)
+
+#define LAYER_NAME_FUNCTION_CONCAT(layername, func) layername##func
+#define LAYER_NAME_FUNCTION(func) LAYER_NAME_FUNCTION_CONCAT(VK_LAYER_STADIA_pipeline_runtime, func)
+
+// Exposes the layer interface version 0's GetInstanceProcAddr
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
+LAYER_NAME_FUNCTION(GetInstanceProcAddr)(VkInstance instance, const char* funcName) {
+  return RuntimeLayer_GetInstanceProcAddr(instance, funcName);
+}
+
+// Exposes the layer interface version 0's GetDeviceProcAddr
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
+LAYER_NAME_FUNCTION(GetDeviceProcAddr)(VkDevice dev, const char* funcName) {
+  return RuntimeLayer_GetDeviceProcAddr(dev, funcName);
+}
+
+// Enumerates all layers in the library.
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR VkResult VKAPI_CALL
+vkEnumerateInstanceLayerProperties(uint32_t* pPropertyCount,
+                                   VkLayerProperties* pProperties) {
+  return RuntimeLayer_EnumerateInstanceLayerProperties(pPropertyCount,
+                                                       pProperties);
+}
+
+// Enumerates instance extensions of a given layer in the library.
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR VkResult VKAPI_CALL
+vkEnumerateInstanceExtensionProperties(const char* /*pLayerName*/,
+                                       uint32_t* pPropertyCount,
+                                       VkExtensionProperties* /*pProperties*/) {
+  *pPropertyCount = 0;
+  return VK_SUCCESS;
+}
+
+// Enumerates all layers in the library that participate in device function interception.
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR VkResult VKAPI_CALL
+vkEnumerateDeviceLayerProperties(
+    VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkLayerProperties* pProperties) {
+  return RuntimeLayer_EnumerateDeviceLayerProperties(physicalDevice, pPropertyCount, pProperties);
+}
+
+// Enumerates device extensions of a given layer in the library.
+SPL_LAYER_ENTRY_POINT VKAPI_ATTR VkResult VKAPI_CALL
+vkEnumerateDeviceExtensionProperties(VkPhysicalDevice /*physicalDevice*/,
+                                     const char* /*pLayerName*/,
+                                     uint32_t* pPropertyCount,
+                                     VkExtensionProperties* /*pProperties*/) {
+  *pPropertyCount = 0;
+  return VK_SUCCESS;
+}
+
+#undef LAYER_NAME_FUNCTION
+
+#endif // EXPOSE_LAYER_INTERFACE_VERSION_0
+

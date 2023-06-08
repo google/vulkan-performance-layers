@@ -33,6 +33,13 @@ constexpr size_t kMaxBufferSize = 128;
 
 std::string DoubleToString(double value) {
   std::string str;
+#if defined(__ANDROID__)
+  // stdlib on Android doesn't seem to support to_chars although the c++17
+  // flag should allow the compiler to use it (c++17 ops was removed).
+  std::ostringstream strs;
+  strs << value;
+  str = strs.str();
+#else
   // Start with the small-string size.
   str.resize(str.capacity());
   // Grow until we have enough space to store the number.
@@ -46,6 +53,7 @@ std::string DoubleToString(double value) {
     str.resize(str.capacity() * 2);
   }
   assert(false && "Not enough space");
+#endif
   return str;
 }
 
