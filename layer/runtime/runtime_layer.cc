@@ -33,10 +33,13 @@ namespace {
 // Layer book-keeping information
 // ----------------------------------------------------------------------------
 
-#define LAYER_NAME "VK_LAYER_STADIA_pipeline_runtime"
+#define LAYER_NAME VK_LAYER_STADIA_pipeline_runtime
+
+#define STRINGIFY_EXPAND(exp) #exp
+#define STRINGIFY(exp) STRINGIFY_EXPAND(exp)
 
 constexpr uint32_t kRuntimeLayerVersion = 1;
-constexpr char kLayerName[] = LAYER_NAME;
+constexpr char kLayerName[] = STRINGIFY(LAYER_NAME);
 constexpr char kLayerDescription[] =
     "Stadia Pipeline Pipeline Runtime Measuring Layer";
 constexpr char kLogFilenameEnvVar[] = "VK_RUNTIME_LOG";
@@ -494,7 +497,10 @@ SPL_LAYER_ENTRY_POINT SPL_RUNTIME_LAYER_FUNC(PFN_vkVoidFunction,
 #if defined(EXPOSE_LAYER_INTERFACE_VERSION_0)
 
 #define LAYER_NAME_FUNCTION_CONCAT(layername, func) layername##func
-#define LAYER_NAME_FUNCTION(func) LAYER_NAME_FUNCTION_CONCAT(LAYER_NAME, func)
+#define LAYER_NAME_FUNCTION_CONCAT_EXPAND(layername, func) \
+  LAYER_NAME_FUNCTION_CONCAT(layername, func)
+#define LAYER_NAME_FUNCTION(func) \
+  LAYER_NAME_FUNCTION_CONCAT_EXPAND(LAYER_NAME, func)
 
 // Exposes the layer interface version 0's GetInstanceProcAddr
 SPL_LAYER_ENTRY_POINT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
