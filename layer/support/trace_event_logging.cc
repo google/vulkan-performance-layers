@@ -31,9 +31,11 @@ namespace performancelayers {
 namespace {
 
 // Converts an integer in nanoseconds to a string in milliseconds.
-// This uses a simple custom implementation of a platform-agnostic and locale-independent float printing mechanics.
-// Ideally, the code would use std::to_chars, which matches the requirements while being more efficient in terms of memory allocation.
-// However, that function is not available in Android right now.
+// This uses a simple custom implementation of a platform-agnostic and
+// locale-independent float printing mechanics. Ideally, the code would use
+// std::to_chars, which matches the requirements while being more efficient in
+// terms of memory allocation. However, that function is not available in
+// Android right now.
 std::string NanosecondsToMillisecondString(int64_t value) {
   std::ostringstream ss;
   ss << value / 1000000 << "." << std::setw(6) << std::setfill('0')
