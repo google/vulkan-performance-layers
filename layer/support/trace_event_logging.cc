@@ -36,7 +36,8 @@ namespace {
 // However, that function is not available in Android right now.
 std::string NanosecondsToMillisecondString(int64_t value) {
   std::ostringstream ss;
-  ss << value / 1000000 << "." << std::setw(6) << std::setfill('0') << std::abs(value) % 1000000;
+  ss << value / 1000000 << "." << std::setw(6) << std::setfill('0')
+     << std::abs(value) % 1000000;
   return ss.str();
 }
 
