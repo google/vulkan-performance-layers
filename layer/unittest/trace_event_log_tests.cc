@@ -210,7 +210,7 @@ TEST(TraceEvent, CompleteEventToString) {
                                            123, 321);
 
   std::string_view expected_str =
-      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "dur" : 0.001, "args" : \{ "duration" : 0.001 \} \},)";
+      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "dur" : 0.001000, "args" : \{ "duration" : 0.001000 \} \},)";
   EXPECT_THAT(EventToTraceEventString(complete_event),
               MatchesRegex(expected_str));
 }
@@ -289,7 +289,7 @@ TEST(TraceEventLogger, LogDifferentTypes) {
       R"(\{ "name" : "compile_time_init", "ph" : "i", "cat" : "compile_time", "pid" : 123, "tid" : 321, "ts" : ([0-9\.]+), "s" : "g", "args" : \{ "scope" : "g" \} \},)";
 
   std::string_view complete_expected_str =
-      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 321, "tid" : 123, "ts" : ([0-9\.]+), "dur" : 0.001, "args" : \{ "duration" : 0.001 \} \},)";
+      R"(\{ "name" : "compile_time", "ph" : "X", "cat" : "pipeline", "pid" : 321, "tid" : 123, "ts" : ([0-9\.]+), "dur" : 0.001000, "args" : \{ "duration" : 0.001000 \} \},)";
   EXPECT_THAT(out.GetLog(), ElementsAre("[", MatchesRegex(instant_expected_str),
                                         MatchesRegex(complete_expected_str)));
 }
