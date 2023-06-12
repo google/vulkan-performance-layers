@@ -35,8 +35,8 @@ namespace {
 
 #define LAYER_NAME VK_LAYER_STADIA_pipeline_runtime
 
-#define STRINGIFY_EXPAND(exp) #exp
-#define STRINGIFY(exp) STRINGIFY_EXPAND(exp)
+#define STRINGIFY_EXPANDED(exp) #exp
+#define STRINGIFY(exp) STRINGIFY_EXPANDED(exp)
 
 constexpr uint32_t kRuntimeLayerVersion = 1;
 constexpr char kLayerName[] = STRINGIFY(LAYER_NAME);
@@ -496,22 +496,24 @@ SPL_LAYER_ENTRY_POINT SPL_RUNTIME_LAYER_FUNC(PFN_vkVoidFunction,
 
 #if defined(EXPOSE_LAYER_INTERFACE_VERSION_0)
 
-#define LAYER_NAME_FUNCTION_CONCAT(layername, func) layername##func
-#define LAYER_NAME_FUNCTION_CONCAT_EXPAND(layername, func) \
-  LAYER_NAME_FUNCTION_CONCAT(layername, func)
-#define LAYER_NAME_FUNCTION(func) \
-  LAYER_NAME_FUNCTION_CONCAT_EXPAND(LAYER_NAME, func)
+#define LAYER_NAME_FUNCTION_CONCAT_EXPANDED(LAYER_NAME_, FUNC_NAME_) \
+  LAYER_NAME_##FUNC_NAME_
+#define LAYER_NAME_FUNCTION_CONCAT(LAYER_NAME_, FUNC_NAME_) \
+  LAYER_NAME_FUNCTION_CONCAT_EXPANDED(LAYER_NAME_, FUNC_NAME_)
+#define SPL_RUNTIME_LAYER_INTERFACE(RETURN_TYPE_, FUNC_NAME_, FUNC_ARGS_) \
+  SPL_LAYER_ENTRY_POINT VKAPI_ATTR RETURN_TYPE_ VKAPI_CALL                \
+  LAYER_NAME_FUNCTION_CONCAT(LAYER_NAME, FUNC_NAME_)                      \
+  FUNC_ARGS_
 
 // Exposes the layer interface version 0's GetInstanceProcAddr
-SPL_LAYER_ENTRY_POINT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
-LAYER_NAME_FUNCTION(GetInstanceProcAddr)(VkInstance instance,
-                                         const char* funcName) {
+SPL_RUNTIME_LAYER_INTERFACE(PFN_vkVoidFunction, GetInstanceProcAddr,
+                            (VkInstance instance, const char* funcName)) {
   return RuntimeLayer_GetInstanceProcAddr(instance, funcName);
 }
 
 // Exposes the layer interface version 0's GetDeviceProcAddr
-SPL_LAYER_ENTRY_POINT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
-LAYER_NAME_FUNCTION(GetDeviceProcAddr)(VkDevice dev, const char* funcName) {
+SPL_RUNTIME_LAYER_INTERFACE(PFN_vkVoidFunction, GetDeviceProcAddr,
+                            (VkDevice dev, const char* funcName)) {
   return RuntimeLayer_GetDeviceProcAddr(dev, funcName);
 }
 
@@ -551,7 +553,5 @@ vkEnumerateDeviceExtensionProperties(VkPhysicalDevice /*physicalDevice*/,
   *pPropertyCount = 0;
   return VK_SUCCESS;
 }
-
-#undef LAYER_NAME_FUNCTION
 
 #endif  // EXPOSE_LAYER_INTERFACE_VERSION_0
