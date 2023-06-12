@@ -29,32 +29,15 @@
 
 namespace performancelayers {
 namespace {
-constexpr size_t kMaxBufferSize = 128;
 
-std::string DoubleToString(double value) {
-  std::string str;
-#if defined(__ANDROID__)
-  // stdlib on Android doesn't seem to support to_chars although the c++17
-  // flag should allow the compiler to use it (c++17 ops was removed).
-  std::ostringstream strs;
-  strs << value;
-  str = strs.str();
-#else
-  // Start with the small-string size.
-  str.resize(str.capacity());
-  // Grow until we have enough space to store the number.
-  while (str.size() < kMaxBufferSize) {
-    auto [end, err] = std::to_chars(str.data(), str.data() + str.size(), value,
-                                    std::chars_format::fixed);
-    if (err == std::errc()) {
-      return str.data();
-    }
-    // Not enough space.
-    str.resize(str.capacity() * 2);
-  }
-  assert(false && "Not enough space");
-#endif
-  return str;
+// Converts an integer in nanoseconds to a string in milliseconds.
+// This uses a simple custom implementation of a platform-agnostic and locale-independent float printing mechanics.
+// Ideally, the code would use std::to_chars, which matches the requirements while being more efficient in terms of memory allocation.
+// However, that function is not available in Android right now.
+std::string NanosecondsToMillisecondString(int64_t value) {
+  std::ostringstream ss;
+  ss << value / 1000000 << "." << std::setw(6) << std::setfill('0') << std::abs(value) % 1000000;
+  return ss.str();
 }
 
 std::string ValueToJsonString(bool value) { return value ? "true" : "false"; }
@@ -73,16 +56,16 @@ std::string ValueToJsonString(const std::vector<int64_t> &values) {
   return json_str.str();
 }
 
-// Converts the duration to milliseconds, the defualt time unit in the `Trace
+// Converts the duration to milliseconds, the default time unit in the `Trace
 // Event` format.
 std::string ValueToJsonString(Duration value) {
-  return DoubleToString(value.ToMilliseconds());
+  return NanosecondsToMillisecondString(value.ToNanoseconds());
 }
 
-// Converts the timestamp to milliseconds, the defualt time unit in the `Trace
+// Converts the timestamp to milliseconds, the default time unit in the `Trace
 // Event` format.
 std::string ValueToJsonString(Timestamp value) {
-  return DoubleToString(value.ToMilliseconds());
+  return NanosecondsToMillisecondString(value.ToNanoseconds());
 }
 
 // Appends all given attributes, including the type-specific attribute, to the
